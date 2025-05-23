@@ -1,2 +1,5 @@
 .DS_Store
 .docx
+.vscode
+cpu_simulator
+/obj

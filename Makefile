@@ -1,30 +1,25 @@
 CC = gcc
-CFLAGS = -Wall -I./include
-SRC_DIR = src
-OBJ_DIR = obj
-BIN_DIR = bin
+CFLAGS = -Wall -g
 
-# 소스 파일 목록
-SRCS = $(wildcard $(SRC_DIR)/*.c)
-OBJS = $(patsubst $(SRC_DIR)/%.c, $(OBJ_DIR)/%.o, $(SRCS))
-TARGET = scheduler
+SRCDIR = src
+INCDIR = include
+OBJDIR = obj
 
-# 디렉토리 생성
-$(shell mkdir -p $(OBJ_DIR) $(BIN_DIR))
+SRCS = $(wildcard $(SRCDIR)/*.c)
+OBJS = $(patsubst $(SRCDIR)/%.c,$(OBJDIR)/%.o,$(SRCS))
+INCS = -I$(INCDIR)
+TARGET = cpu_simulator
 
-# 빌드 타겟
-all: $(BIN_DIR)/$(TARGET)
+all: $(TARGET)
 
-# 실행 파일 생성
-$(BIN_DIR)/$(TARGET): $(OBJS)
+$(TARGET): $(OBJS)
 	$(CC) $(CFLAGS) -o $@ $^
 
-# 오브젝트 파일 생성
-$(OBJ_DIR)/%.o: $(SRC_DIR)/%.c
-	$(CC) $(CFLAGS) -c $< -o $@
+$(OBJDIR)/%.o: $(SRCDIR)/%.c $(INCDIR)/*.h | $(OBJDIR)
+	$(CC) $(CFLAGS) $(INCS) -c $< -o $@
 
-# 정리
+$(OBJDIR):
+	mkdir -p $@
+
 clean:
-	rm -rf $(OBJ_DIR)/*.o $(BIN_DIR)/$(TARGET)
-
-.PHONY: all clean
+	rm -rf $(OBJDIR) $(TARGET)

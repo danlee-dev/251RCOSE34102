@@ -1,23 +1,19 @@
-#ifndef __queue_h__
-#define __queue_h__
+#ifndef QUEUE_H
+#define QUEUE_H
 
-typedef int Data;
+#define MAX_QUEUE_SIZE 100
 
-typedef struct _node {
-    Data data;
-    struct _node* next;
-} Node;
-
-typedef struct _queue {
-    Node* front;
-    Node* rear;
+typedef struct {
+    int data[MAX_QUEUE_SIZE];
+    int front;
+    int rear;
 } Queue;
 
-void InitQueue(Queue* q);
-void Enqueue(Queue* q, Data data);
-Data Dequeue(Queue* q);
-int IsEmpty(Queue* q);
-int peek(Queue* q);
+void init_queue(Queue *q);
+int is_empty(Queue *q);
+int is_full(Queue *q);
+void enqueue(Queue *q, int value);
+int dequeue(Queue *q);
+int peek(Queue *q);
 
 #endif
-

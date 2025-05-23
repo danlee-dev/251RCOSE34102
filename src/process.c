@@ -1,52 +1,47 @@
 #include "process.h"
-#include <stdlib.h>
 #include <stdio.h>
+#include <stdlib.h>
 #include <time.h>
 
-void initProcess(Process *process, int pid, int arrival_time, int burst_time, int priority) {
-    process->pid = pid;
-    process->arrival_time = arrival_time;
-    process->burst_time = burst_time;
-    process->priority = priority;
-    process->remaining_time = burst_time;
-    process->turnaround_time = 0;
-    process->waiting_time = 0;
-    process->response_time = -1;
-}
+// 프로세스 생성 함수
+Process *create_processes(int count) {
+    Process *processes = (Process *)malloc(sizeof(Process) * count);
 
-Process *createProcess(int num_process, int max_arrival_time, int min_burst_time, int max_burst_time, int min_priority, int max_priority) {
-    srand(time(NULL));
-    Process *processes = (Process *)malloc(num_process * sizeof(Process));
+    for (int i = 0; i < count; i++) {
+        processes[i].pid = i;
+        processes[i].arrival_time = rand() % 10;  // 0~9 사이 도착 시간
+        processes[i].cpu_burst = rand() % 10 + 1; // 1~10 사이 CPU 버스트
 
-    for(int i = 0; i < num_process; i++) {
-        int arrival = rand() % max_arrival_time + 1;
-        int burst = rand() % (max_burst_time - min_burst_time + 1) + min_burst_time;
-        int priority = rand() % (max_priority - min_priority + 1) + min_priority;
+        // I/O 처리
+        if (processes[i].cpu_burst > 2) {
+            processes[i].io_start = rand() % (processes[i].cpu_burst - 1) +
+                                    1; // CPU 버스트 중간에 I/O 요청
+            processes[i].io_burst = rand() % 5 + 1; // 1~5 사이 I/O 버스트
+        } else {
+            processes[i].io_start = -1; // I/O 요청 없음
+            processes[i].io_burst = 0;
+        }
 
-        init_process(&processes[i], i+1, arrival, burst, priority);
+        processes[i].priority = rand() % 10 + 1; // 1~10 사이 우선순위
+        processes[i].remaining_time = processes[i].cpu_burst;
+        processes[i].start = FALSE;
+        processes[i].progress = 0;
+        processes[i].comp_time = 0;
+        processes[i].waiting_time = 0;
+        processes[i].turnaround_time = 0;
     }
 
     return processes;
 }
 
-void print_processes(Process *processes, int num_processes) {
-    printf("\n프로세스 목록:\n");
-    printf("--------------------------------------------\n");
-    printf("PID\t도착시간\t실행시간\t우선순위\n");
-    printf("--------------------------------------------\n");
-
-    for (int i = 0; i < num_processes; i++) {
-        printf("%d\t%d\t\t%d\t\t%d\n",
-               processes[i].pid,
-               processes[i].arrival_time,
-               processes[i].burst_time,
-               processes[i].priority);
+// 프로세스 상태 초기화 함수
+void reset_processes(Process *processes, int count) {
+    for (int i = 0; i < count; i++) {
+        processes[i].remaining_time = processes[i].cpu_burst;
+        processes[i].start = FALSE;
+        processes[i].progress = 0;
+        processes[i].comp_time = 0;
+        processes[i].waiting_time = 0;
+        processes[i].turnaround_time = 0;
     }
-    printf("--------------------------------------------\n\n");
 }
-
-void free_processes(Process *processes) {
-    free(processes);
-}
-
-
