@@ -236,7 +236,7 @@ void compare_algorithms(Process *processes, int count, Config *config) {
            "------+------------+\n");
 
     // 결과를 파일로 저장
-    FILE *fp = fopen("scheduling_comparison_report.txt", "w");
+    FILE *fp = fopen("test/scheduling_comparison_report.txt", "w");
     if (fp) {
         // 시뮬레이션 설정 정보 저장
         fprintf(fp,
@@ -246,7 +246,9 @@ void compare_algorithms(Process *processes, int count, Config *config) {
         fprintf(fp, " - Time quantum (RR): %d\n", config->time_quantum);
         fprintf(fp, " - Priority range: 1-5 (1 being highest)\n");
         fprintf(fp, " - CPU burst time range: 2-10\n");
-        fprintf(fp, " - I/O burst time range: 1-5 (when cpu burst is higher than 2)\n");
+        fprintf(
+            fp,
+            " - I/O burst time range: 1-5 (when cpu burst is higher than 2)\n");
 
         // 성능 지표 요약
         fprintf(fp, "* Performance Metrics Summary:\n");
@@ -476,7 +478,7 @@ GanttChart *consolidate_gantt_chart(GanttChart *original) {
     return consolidated;
 }
 
-void display_gan(GanttChart *gantt, const char *algorithm_name) {
+void display_gantt_chart(GanttChart *gantt, const char *algorithm_name) {
     GanttChart *consolidated = consolidate_gantt_chart(gantt);
     int i, j;
 
