@@ -1,8 +1,12 @@
-#include <stdio.h>
 #include "config.h"
-
+#include <stdio.h>
+#include <stdlib.h>
 // 설정 초기화
-void init_config(Config *config) {
-    config->time_quantum = 2;  // 기본값
-    config->display_gantt = 1; // 기본값: 간트 차트 표시
+void init_config(Config *config, char mode) {
+    if (mode == 'y') {
+        config->time_quantum = rand() % 3 + 1; // 1~3 사이 타임 퀀텀
+    } else {
+        printf("Enter the time quantum: ");
+        scanf("%d", &config->time_quantum);
+    }
 }

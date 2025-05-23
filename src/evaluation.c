@@ -8,6 +8,61 @@
 #include <stdlib.h>
 #include <string.h>
 
+void print_thin_emphasized_header(const char *title, int width) {
+    int title_len = strlen(title);
+    int left_padding = (width - title_len - 2) / 2;
+    int right_padding = width - title_len - 2 - left_padding;
+
+    printf("▓");
+    for (int i = 0; i < left_padding; i++)
+        printf("▓");
+    printf(" %s ", title);
+    for (int i = 0; i < right_padding; i++)
+        printf("▓");
+    printf("▓\n");
+}
+
+void print_section_divider(const char *title, int width) {
+    printf("\n┌─── %s ", title);
+    for (int i = 0; i < width - strlen(title) - 1; i++)
+        printf("─");
+    printf("┐\n");
+}
+
+void print_section_end(int width) {
+    printf("└");
+    for (int i = 0; i < width; i++)
+        printf("─");
+    printf("┘\n");
+}
+
+void print_emphasized_header(const char *title, int width) {
+    int title_len = strlen(title);
+    int padding = (width - title_len - 2) / 2; // 양쪽 여백 계산 (공백 2개 포함)
+    int remaining = width - title_len - 2 - padding; // 남은 공간
+
+    // 상단 경계선
+    printf("╔");
+    for (int i = 0; i < width; i++)
+        printf("═");
+    printf("╗\n");
+
+    // 제목 행
+    printf("║");
+    for (int i = 0; i < padding; i++)
+        printf(" ");
+    printf(" %s ", title); // 제목 앞뒤로 공백 1개씩
+    for (int i = 0; i < remaining; i++)
+        printf(" ");
+    printf("║\n");
+
+    // 하단 경계선
+    printf("╚");
+    for (int i = 0; i < width; i++)
+        printf("═");
+    printf("╝\n");
+}
+
 // 간트차트 엔트리 추가 함수 (추적을 위해서)
 void add_gantt_entry(GanttChart *gantt, int start, int end, int pid,
                      const char *status) {
@@ -20,23 +75,11 @@ void add_gantt_entry(GanttChart *gantt, int start, int end, int pid,
     }
 }
 
-// 알고리즘 비교 함수
 void compare_algorithms(Process *processes, int count, Config *config) {
-    printf("\n===== Algorithm Comparison =====\n");
+    print_emphasized_header("Algorithm Comparison", 115);
 
-    // 성능 지표를 저장할 구조체 배열
-    typedef struct {
-        char name[32];
-        float avg_wait_time;
-        float avg_turnaround_time;
-        float cpu_utilization;
-        float throughput;
-        int total_time;
-    } AlgorithmMetrics;
+    AlgorithmMetrics metrics[6];
 
-    AlgorithmMetrics metrics[6]; // 6개 알고리즘
-
-    // 원본 프로세스 배열 복사
     Process *copy_processes = malloc(sizeof(Process) * count);
     for (int i = 0; i < count; i++) {
         copy_processes[i] = processes[i];
@@ -44,7 +87,7 @@ void compare_algorithms(Process *processes, int count, Config *config) {
 
     // 1. FCFS
     reset_processes(processes, count);
-    Metrics *metrics_temp = run_fcfs(processes, count, config);
+    Metrics *metrics_temp = run_fcfs(processes, count);
 
     int total_waiting = 0;
     int total_turnaround = 0;
@@ -69,7 +112,7 @@ void compare_algorithms(Process *processes, int count, Config *config) {
         processes[i] = copy_processes[i];
     }
     reset_processes(processes, count);
-    metrics_temp = run_sjf_np(processes, count, config);
+    metrics_temp = run_sjf_np(processes, count);
 
     total_waiting = 0;
     total_turnaround = 0;
@@ -88,16 +131,13 @@ void compare_algorithms(Process *processes, int count, Config *config) {
         100.0;
     metrics[1].throughput = ((float)count / metrics_temp->total_time) * 100.0;
     metrics[1].total_time = metrics_temp->total_time;
-    // printf("cpu_utilization: %f, idle_time: %d\n",
-    // metrics[1].cpu_utilization,
-    //        metrics_temp->idle_time);
 
     // 3. Preemptive SJF
     for (int i = 0; i < count; i++) {
         processes[i] = copy_processes[i];
     }
     reset_processes(processes, count);
-    metrics_temp = run_sjf_p(processes, count, config);
+    metrics_temp = run_sjf_p(processes, count);
 
     total_waiting = 0;
     total_turnaround = 0;
@@ -116,16 +156,13 @@ void compare_algorithms(Process *processes, int count, Config *config) {
         100.0;
     metrics[2].throughput = ((float)count / metrics_temp->total_time) * 100.0;
     metrics[2].total_time = metrics_temp->total_time;
-    // printf("cpu_utilization: %f, idle_time: %d\n",
-    // metrics[2].cpu_utilization,
-    //        metrics_temp->idle_time);
 
     // 4. Non-preemptive Priority
     for (int i = 0; i < count; i++) {
         processes[i] = copy_processes[i];
     }
     reset_processes(processes, count);
-    metrics_temp = run_priority_np(processes, count, config);
+    metrics_temp = run_priority_np(processes, count);
 
     total_waiting = 0;
     total_turnaround = 0;
@@ -144,16 +181,13 @@ void compare_algorithms(Process *processes, int count, Config *config) {
         100.0;
     metrics[3].throughput = ((float)count / metrics_temp->total_time) * 100.0;
     metrics[3].total_time = metrics_temp->total_time;
-    // printf("cpu_utilization: %f, idle_time: %d\n",
-    // metrics[3].cpu_utilization,
-    //        metrics_temp->idle_time);
 
     // 5. Preemptive Priority
     for (int i = 0; i < count; i++) {
         processes[i] = copy_processes[i];
     }
     reset_processes(processes, count);
-    metrics_temp = run_priority_p(processes, count, config);
+    metrics_temp = run_priority_p(processes, count);
 
     total_waiting = 0;
     total_turnaround = 0;
@@ -172,9 +206,6 @@ void compare_algorithms(Process *processes, int count, Config *config) {
         100.0;
     metrics[4].throughput = ((float)count / metrics_temp->total_time) * 100.0;
     metrics[4].total_time = metrics_temp->total_time;
-    // printf("cpu_utilization: %f, idle_time: %d\n",
-    // metrics[4].cpu_utilization,
-    //        metrics_temp->idle_time);
 
     // 6. Round Robin
     for (int i = 0; i < count; i++) {
@@ -200,12 +231,10 @@ void compare_algorithms(Process *processes, int count, Config *config) {
         100.0;
     metrics[5].throughput = ((float)count / metrics_temp->total_time) * 100.0;
     metrics[5].total_time = metrics_temp->total_time;
-    // printf("cpu_utilization: %f, idle_time: %d\n",
-    // metrics[5].cpu_utilization,
-    //        metrics_temp->idle_time);
 
-    // 결과 비교 출력
-    printf("\n===== CPU Scheduling Algorithm Comparison =====\n");
+    printf("\n\n");
+    print_thin_emphasized_header("CPU Scheduling Algorithm Comparison", 115);
+    printf("\n");
     printf("+----------------------+---------------+------------------+--------"
            "------+------------+\n");
     printf("| Algorithm            | Avg Wait Time | Avg Turnaround   | CPU "
@@ -235,10 +264,8 @@ void compare_algorithms(Process *processes, int count, Config *config) {
     printf("+----------------------+---------------+------------------+--------"
            "------+------------+\n");
 
-    // 결과를 파일로 저장
     FILE *fp = fopen("test/scheduling_comparison_report.txt", "w");
     if (fp) {
-        // 시뮬레이션 설정 정보 저장
         fprintf(fp,
                 "===== CPU Scheduling Simulator Comparison Report =====\n\n");
         fprintf(fp, "* Simulation Configuration:\n");
@@ -250,7 +277,6 @@ void compare_algorithms(Process *processes, int count, Config *config) {
             fp,
             " - I/O burst time range: 1-5 (when cpu burst is higher than 2)\n");
 
-        // 성능 지표 요약
         fprintf(fp, "* Performance Metrics Summary:\n");
         fprintf(fp,
                 " +----------------------+---------------+------------------"
@@ -287,7 +313,6 @@ void compare_algorithms(Process *processes, int count, Config *config) {
                 " +----------------------+---------------+------------------"
                 "+--------------+------------+\n\n\n");
 
-        // 알고리즘 분석
         fprintf(fp, "* Algorithm Analysis:\n");
 
         // 평균 대기 시간이 가장 짧은 알고리즘 찾기
@@ -338,7 +363,6 @@ void compare_algorithms(Process *processes, int count, Config *config) {
                 metrics[max_throughput_idx].name,
                 metrics[max_throughput_idx].throughput);
 
-        // 결론
         fprintf(fp, "* Conclusion:\n");
 
         fprintf(fp,
@@ -377,7 +401,6 @@ void compare_algorithms(Process *processes, int count, Config *config) {
         printf("\nError: Could not create comparison report file.\n");
     }
 
-    // 원본 프로세스 상태 복원
     for (int i = 0; i < count; i++) {
         processes[i] = copy_processes[i];
     }
@@ -391,24 +414,36 @@ void display_performance_summary(Process *processes, int count, int total_time,
     int total_turnaround = 0;
 
     for (int i = 0; i < count; i++) {
-        processes[i].turnaround_time =
-            processes[i].comp_time - processes[i].arrival_time;
-        processes[i].waiting_time =
-            processes[i].turnaround_time - processes[i].cpu_burst;
-
         total_waiting += processes[i].waiting_time;
         total_turnaround += processes[i].turnaround_time;
     }
 
     float avg_waiting = (float)total_waiting / count;
     float avg_turnaround = (float)total_turnaround / count;
+    float cpu_utilization =
+        ((float)(total_time - idle_time) / total_time) * 100.0;
 
-    printf("\nAverage Waiting Time    : %.2f\n", avg_waiting);
-    printf("Average Turnaround Time : %.2f\n", avg_turnaround);
+    printf("\n");
+    print_section_divider("Performance Metrics", 60);
+
+    printf(
+        "│ Average Waiting Time    : %6.2f ms                            │\n",
+        avg_waiting);
+    printf(
+        "│ Average Turnaround Time : %6.2f ms                            │\n",
+        avg_turnaround);
+    printf(
+        "│ CPU Utilization         : %6.2f %%                             │\n",
+        cpu_utilization);
+    printf("│ Total Execution Time    : %6d ms                            │\n",
+           total_time);
+
+    print_section_end(64);
 }
 
-// 프로세스 상세 정보를 테이블 형태로 표시
 void display_process_table(Process *processes, int count) {
+    printf("\n");
+    printf("\n** Process Table **\n");
     printf(
         "+-----+------------+-------------+----------+----------+------------+-"
         "-------------+-------------+----------------+\n");
@@ -419,10 +454,7 @@ void display_process_table(Process *processes, int count) {
         "+-----+------------+-------------+----------+----------+------------+-"
         "-------------+-------------+----------------+\n");
 
-    // 각 프로세스 정보 출력
     for (int i = 0; i < count; i++) {
-
-        // I/O 정보 표시 (없으면 "None" 출력)
         char io_start_str[10] = "None";
         char io_burst_str[10] = "None";
 
@@ -444,7 +476,6 @@ void display_process_table(Process *processes, int count) {
     }
 }
 
-// 간트차트 데이터를 통합하는 함수 (연속된 같은 프로세스를 하나로 합치기)
 GanttChart *consolidate_gantt_chart(GanttChart *original) {
     if (original->count == 0)
         return original;
@@ -454,22 +485,17 @@ GanttChart *consolidate_gantt_chart(GanttChart *original) {
     consolidated->count = 0;
     consolidated->capacity = original->count;
 
-    // 첫 번째 엔트리 추가
     consolidated->entries[0] = original->entries[0];
     consolidated->count = 1;
 
-    // 나머지 엔트리들을 확인하면서 같은 프로세스면 합치기
     for (int i = 1; i < original->count; i++) {
         int last_idx = consolidated->count - 1;
 
-        // 같은 프로세스가 연속으로 실행되는 경우
         if (consolidated->entries[last_idx].process_id ==
             original->entries[i].process_id) {
-            // 끝 시간만 업데이트
             consolidated->entries[last_idx].time_end =
                 original->entries[i].time_end;
         } else {
-            // 다른 프로세스인 경우 새로운 엔트리 추가
             consolidated->entries[consolidated->count] = original->entries[i];
             consolidated->count++;
         }
@@ -479,6 +505,7 @@ GanttChart *consolidate_gantt_chart(GanttChart *original) {
 }
 
 void display_gantt_chart(GanttChart *gantt, const char *algorithm_name) {
+    printf("\n** Gantt Chart for %s **\n\n", algorithm_name);
     GanttChart *consolidated = consolidate_gantt_chart(gantt);
     int i, j;
 
@@ -543,7 +570,6 @@ void display_gantt_chart(GanttChart *gantt, const char *algorithm_name) {
             printf("  ");
         }
 
-        // 두 자리 숫자일 때 백스페이스
         if (end_time > 9) {
             printf("\b");
         }
@@ -554,16 +580,13 @@ void display_gantt_chart(GanttChart *gantt, const char *algorithm_name) {
     free(consolidated->entries);
     free(consolidated);
 }
-// 새로운 결과 표시 함수
+
 void display_scheduling_results(Process *processes, int count,
                                 GanttChart *gantt, int total_time,
                                 int idle_time, const char *algorithm_name) {
-    // 간트차트 표시
     display_gantt_chart(gantt, algorithm_name);
 
-    // 성능 지표 표시
-    display_performance_summary(processes, count, total_time, idle_time);
-
-    // 프로세스 상세 정보 테이블 표시
     display_process_table(processes, count);
+
+    display_performance_summary(processes, count, total_time, idle_time);
 }

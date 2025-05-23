@@ -8,7 +8,7 @@
 #include <time.h>
 
 int main() {
-    srand(time(NULL)); 
+    srand(time(NULL));
 
     int choice;
     int process_count;
@@ -17,12 +17,14 @@ int main() {
     printf("Enter the number of processes: ");
     scanf("%d", &process_count);
 
-    // 프로세스 생성
-    Process *processes = create_processes(process_count);
+    printf("random create mode? ('y': yes, 'n': no): ");
+    char mode;
+    scanf(" %c", &mode);
 
-    // 시스템 설정
+    Process *processes = create_processes(process_count, mode);
+
     Config system_config;
-    init_config(&system_config);
+    init_config(&system_config, mode);
 
     while (1) {
         printf("\n1. Run FCFS\n");
@@ -38,19 +40,19 @@ int main() {
 
         switch (choice) {
         case 1:
-            run_fcfs(processes, process_count, &system_config);
+            run_fcfs(processes, process_count);
             break;
         case 2:
-            run_sjf_np(processes, process_count, &system_config);
+            run_sjf_np(processes, process_count);
             break;
         case 3:
-            run_sjf_p(processes, process_count, &system_config);
+            run_sjf_p(processes, process_count);
             break;
         case 4:
-            run_priority_np(processes, process_count, &system_config);
+            run_priority_np(processes, process_count);
             break;
         case 5:
-            run_priority_p(processes, process_count, &system_config);
+            run_priority_p(processes, process_count);
             break;
         case 6:
             run_rr(processes, process_count, &system_config);
