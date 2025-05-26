@@ -1,4 +1,3 @@
-// evaluation.c에 추가할 함수들
 
 #include "evaluation.h"
 #include "process.h"
@@ -38,32 +37,29 @@ void print_section_end(int width) {
 
 void print_emphasized_header(const char *title, int width) {
     int title_len = strlen(title);
-    int padding = (width - title_len - 2) / 2; // 양쪽 여백 계산 (공백 2개 포함)
-    int remaining = width - title_len - 2 - padding; // 남은 공간
+    int padding = (width - title_len - 2) / 2;
+    int remaining = width - title_len - 2 - padding;
 
-    // 상단 경계선
     printf("╔");
     for (int i = 0; i < width; i++)
         printf("═");
     printf("╗\n");
 
-    // 제목 행
     printf("║");
     for (int i = 0; i < padding; i++)
         printf(" ");
-    printf(" %s ", title); // 제목 앞뒤로 공백 1개씩
+    printf(" %s ", title);
     for (int i = 0; i < remaining; i++)
         printf(" ");
     printf("║\n");
 
-    // 하단 경계선
     printf("╚");
     for (int i = 0; i < width; i++)
         printf("═");
     printf("╝\n");
 }
 
-// 간트차트 엔트리 추가 함수 (추적을 위해서)
+// 간트차트 엔트리 추가 함수
 void add_gantt_entry(GanttChart *gantt, int start, int end, int pid,
                      const char *status) {
     if (gantt->count < gantt->capacity) {
@@ -78,12 +74,12 @@ void add_gantt_entry(GanttChart *gantt, int start, int end, int pid,
 void compare_algorithms(Process *processes, int count, Config *config) {
     print_emphasized_header("Algorithm Comparison", 115);
 
-    AlgorithmMetrics metrics[6];
+    AlgorithmMetrics metrics[9];
 
     Process *copy_processes = malloc(sizeof(Process) * count);
     for (int i = 0; i < count; i++) {
         copy_processes[i] = processes[i];
-    }
+    } // 이젠 딱히 필요없음 -> 이미 scheduling.c에서 해줌 (근데 혹시 모르니까)
 
     // 1. FCFS
     reset_processes(processes, count);
@@ -104,8 +100,9 @@ void compare_algorithms(Process *processes, int count, Config *config) {
         ((float)(metrics_temp->total_time - metrics_temp->idle_time) /
          metrics_temp->total_time) *
         100.0;
-    metrics[0].throughput = ((float)count / metrics_temp->total_time) * 100.0;
+    metrics[0].throughput = ((float)count / metrics_temp->total_time) * 100.0; // 단위 시간당 처리하는 프로세스 양
     metrics[0].total_time = metrics_temp->total_time;
+    metrics[0].missed_deadlines = 0;
 
     // 2. Non-preemptive SJF
     for (int i = 0; i < count; i++) {
@@ -131,6 +128,7 @@ void compare_algorithms(Process *processes, int count, Config *config) {
         100.0;
     metrics[1].throughput = ((float)count / metrics_temp->total_time) * 100.0;
     metrics[1].total_time = metrics_temp->total_time;
+    metrics[1].missed_deadlines = 0;
 
     // 3. Preemptive SJF
     for (int i = 0; i < count; i++) {
@@ -156,6 +154,7 @@ void compare_algorithms(Process *processes, int count, Config *config) {
         100.0;
     metrics[2].throughput = ((float)count / metrics_temp->total_time) * 100.0;
     metrics[2].total_time = metrics_temp->total_time;
+    metrics[2].missed_deadlines = 0;
 
     // 4. Non-preemptive Priority
     for (int i = 0; i < count; i++) {
@@ -181,6 +180,7 @@ void compare_algorithms(Process *processes, int count, Config *config) {
         100.0;
     metrics[3].throughput = ((float)count / metrics_temp->total_time) * 100.0;
     metrics[3].total_time = metrics_temp->total_time;
+    metrics[3].missed_deadlines = 0;
 
     // 5. Preemptive Priority
     for (int i = 0; i < count; i++) {
@@ -206,6 +206,7 @@ void compare_algorithms(Process *processes, int count, Config *config) {
         100.0;
     metrics[4].throughput = ((float)count / metrics_temp->total_time) * 100.0;
     metrics[4].total_time = metrics_temp->total_time;
+    metrics[4].missed_deadlines = 0;
 
     // 6. Round Robin
     for (int i = 0; i < count; i++) {
@@ -231,18 +232,115 @@ void compare_algorithms(Process *processes, int count, Config *config) {
         100.0;
     metrics[5].throughput = ((float)count / metrics_temp->total_time) * 100.0;
     metrics[5].total_time = metrics_temp->total_time;
+    metrics[5].missed_deadlines = 0;
+
+    // 7. Priority with Aging
+    for (int i = 0; i < count; i++) {
+        processes[i] = copy_processes[i];
+    }
+    reset_processes(processes, count);
+    metrics_temp = run_priority_with_aging(processes, count);
+
+    total_waiting = 0;
+    total_turnaround = 0;
+
+    for (int i = 0; i < count; i++) {
+        total_waiting += processes[i].waiting_time;
+        total_turnaround += processes[i].turnaround_time;
+    }
+
+    strcpy(metrics[6].name, "Priority with Aging");
+    metrics[6].avg_wait_time = (float)total_waiting / count;
+    metrics[6].avg_turnaround_time = (float)total_turnaround / count;
+    metrics[6].cpu_utilization =
+        ((float)(metrics_temp->total_time - metrics_temp->idle_time) /
+         metrics_temp->total_time) *
+        100.0;
+    metrics[6].throughput = ((float)count / metrics_temp->total_time) * 100.0;
+    metrics[6].total_time = metrics_temp->total_time;
+    metrics[6].missed_deadlines = 0;
+
+    // 8. EDF
+    for (int i = 0; i < count; i++) {
+        processes[i] = copy_processes[i];
+    }
+    reset_processes(processes, count);
+    metrics_temp = run_edf(processes, count, config);
+
+    total_waiting = 0;
+    int edf_completed_processes = 0;
+    int edf_missed_deadlines = config->deadline_miss_info_count;
+
+    for (int i = 0; i < count; i++) {
+        if (processes[i].comp_time > 0) {
+            total_waiting += processes[i].waiting_time;
+            edf_completed_processes++;
+        }
+    }
+
+    strcpy(metrics[7].name, "EDF");
+    metrics[7].avg_wait_time =
+        edf_completed_processes > 0
+            ? (float)total_waiting / edf_completed_processes
+            : 0.0;
+    metrics[7].avg_turnaround_time =
+        -1.0; // EDF는 turnaround time을 계산하지 않음
+    metrics[7].cpu_utilization =
+        ((float)(metrics_temp->total_time - metrics_temp->idle_time) /
+         metrics_temp->total_time) *
+        100.0;
+    metrics[7].throughput =
+        ((float)edf_completed_processes / metrics_temp->total_time) * 100.0;
+    metrics[7].total_time = metrics_temp->total_time;
+    metrics[7].missed_deadlines = edf_missed_deadlines;
+
+    // 9. RMS
+    for (int i = 0; i < count; i++) {
+        processes[i] = copy_processes[i];
+    }
+    reset_processes(processes, count);
+    metrics_temp = run_rms(processes, count, config);
+
+    total_waiting = 0;
+    int rms_completed_processes = 0;
+    int rms_missed_deadlines = config->deadline_miss_info_count;
+
+    for (int i = 0; i < count; i++) {
+        if (processes[i].comp_time > 0) {
+            total_waiting += processes[i].waiting_time;
+            rms_completed_processes++;
+        }
+    }
+
+    strcpy(metrics[8].name, "RMS");
+    metrics[8].avg_wait_time =
+        rms_completed_processes > 0
+            ? (float)total_waiting / rms_completed_processes
+            : 0.0;
+    metrics[8].avg_turnaround_time =
+        -1.0; // RMS는 turnaround time을 계산하지 않음
+    metrics[8].cpu_utilization =
+        ((float)(metrics_temp->total_time - metrics_temp->idle_time) /
+         metrics_temp->total_time) *
+        100.0;
+    metrics[8].throughput =
+        ((float)rms_completed_processes / metrics_temp->total_time) * 100.0;
+    metrics[8].total_time = metrics_temp->total_time;
+    metrics[8].missed_deadlines = rms_missed_deadlines;
 
     printf("\n\n");
     print_thin_emphasized_header("CPU Scheduling Algorithm Comparison", 115);
     printf("\n");
-    printf("+----------------------+---------------+------------------+--------"
-           "------+------------+\n");
+    printf(
+        "+----------------------+---------------+------------------+----------"
+        "----+------------+----------------+\n");
     printf("| Algorithm            | Avg Wait Time | Avg Turnaround   | CPU "
-           "Util (%%) | Throughput |\n");
-    printf("+----------------------+---------------+------------------+--------"
-           "------+------------+\n");
+           "Util (%%) | Throughput | Missed Deadlines |\n");
+    printf(
+        "+----------------------+---------------+------------------+----------"
+        "----+------------+----------------+\n");
 
-    for (int i = 0; i < 6; i++) {
+    for (int i = 0; i < 9; i++) {
         char short_name[20];
         if (strcmp(metrics[i].name, "Non-Preemptive SJF") == 0) {
             strcpy(short_name, "NP SJF");
@@ -252,19 +350,32 @@ void compare_algorithms(Process *processes, int count, Config *config) {
             strcpy(short_name, "NP Priority");
         } else if (strcmp(metrics[i].name, "Preemptive Priority") == 0) {
             strcpy(short_name, "P Priority");
+        } else if (strcmp(metrics[i].name, "Priority with Aging") == 0) {
+            strcpy(short_name, "Priority+Aging");
         } else {
             strcpy(short_name, metrics[i].name);
         }
 
-        printf("| %-20s | %13.2f | %16.2f | %11.2f%% | %10.4f |\n", short_name,
-               metrics[i].avg_wait_time, metrics[i].avg_turnaround_time,
-               metrics[i].cpu_utilization, metrics[i].throughput);
+        // EDF, RMS의 경우 turnaround time을 "-"로 표시
+        if (i == 7 || i == 8) { // EDF, RMS
+            printf("| %-20s | %13.2f | %16s | %11.2f%% | %10.4f | %14d |\n",
+                   short_name, metrics[i].avg_wait_time, "-",
+                   metrics[i].cpu_utilization, metrics[i].throughput,
+                   metrics[i].missed_deadlines);
+        } else { // 일반 알고리즘들
+            printf("| %-20s | %13.2f | %16.2f | %11.2f%% | %10.4f | %14s |\n",
+                   short_name, metrics[i].avg_wait_time,
+                   metrics[i].avg_turnaround_time, metrics[i].cpu_utilization,
+                   metrics[i].throughput, "N/A");
+        }
     }
 
-    printf("+----------------------+---------------+------------------+--------"
-           "------+------------+\n");
+    printf(
+        "+----------------------+---------------+------------------+----------"
+        "----+------------+----------------+\n");
 
-    FILE *fp = fopen("test/scheduling_comparison_report.txt", "w");
+    // 리포트 생성
+    FILE *fp = fopen("result_example/scheduling_comparison_report.txt", "w");
     if (fp) {
         fprintf(fp,
                 "===== CPU Scheduling Simulator Comparison Report =====\n\n");
@@ -273,22 +384,21 @@ void compare_algorithms(Process *processes, int count, Config *config) {
         fprintf(fp, " - Time quantum (RR): %d\n", config->time_quantum);
         fprintf(fp, " - Priority range: 1-5 (1 being highest)\n");
         fprintf(fp, " - CPU burst time range: 2-10\n");
-        fprintf(
-            fp,
-            " - I/O burst time range: 1-5 (when cpu burst is higher than 2)\n");
+        fprintf(fp, " - I/O burst time range: 1-5 (when cpu burst is higher "
+                    "than 2)\n\n");
 
         fprintf(fp, "* Performance Metrics Summary:\n");
         fprintf(fp,
                 " +----------------------+---------------+------------------"
-                "+--------------+------------+\n");
+                "+--------------+------------+----------------+\n");
         fprintf(fp,
                 " | Algorithm            | Avg Wait Time | Avg Turnaround   "
-                "| CPU Util (%%) | Throughput |\n");
+                "| CPU Util (%%) | Throughput | Missed Deadlines |\n");
         fprintf(fp,
                 " +----------------------+---------------+------------------"
-                "+--------------+------------+\n");
+                "+--------------+------------+----------------+\n");
 
-        for (int i = 0; i < 6; i++) {
+        for (int i = 0; i < 9; i++) {
             char short_name[20];
             if (strcmp(metrics[i].name, "Non-Preemptive SJF") == 0) {
                 strcpy(short_name, "NP SJF");
@@ -299,49 +409,62 @@ void compare_algorithms(Process *processes, int count, Config *config) {
                 strcpy(short_name, "NP Priority");
             } else if (strcmp(metrics[i].name, "Preemptive Priority") == 0) {
                 strcpy(short_name, "P Priority");
+            } else if (strcmp(metrics[i].name, "Priority with Aging") == 0) {
+                strcpy(short_name, "Priority+Aging");
             } else {
                 strcpy(short_name, metrics[i].name);
             }
 
-            fprintf(fp, " | %-20s | %13.2f | %16.2f | %11.2f%% | %10.4f |\n",
+            if (i == 7 || i == 8) { // EDF, RMS
+                fprintf(
+                    fp,
+                    " | %-20s | %13.2f | %16s | %11.2f%% | %10.4f | %14d |\n",
+                    short_name, metrics[i].avg_wait_time, "-",
+                    metrics[i].cpu_utilization, metrics[i].throughput,
+                    metrics[i].missed_deadlines);
+            } else {
+                fprintf(
+                    fp,
+                    " | %-20s | %13.2f | %16.2f | %11.2f%% | %10.4f | %14s |\n",
                     short_name, metrics[i].avg_wait_time,
                     metrics[i].avg_turnaround_time, metrics[i].cpu_utilization,
-                    metrics[i].throughput);
+                    metrics[i].throughput, "N/A");
+            }
         }
 
         fprintf(fp,
                 " +----------------------+---------------+------------------"
-                "+--------------+------------+\n\n\n");
+                "+--------------+------------+----------------+\n\n");
 
         fprintf(fp, "* Algorithm Analysis:\n");
 
-        // 평균 대기 시간이 가장 짧은 알고리즘 찾기
+        // 평균 대기 시간이 가장 짧은 알고리즘 찾기 (일반 알고리즘만)
         int min_wait_idx = 0;
-        for (int i = 1; i < 6; i++) {
+        for (int i = 1; i < 7; i++) { // EDF, RMS 제외
             if (metrics[i].avg_wait_time <
                 metrics[min_wait_idx].avg_wait_time) {
                 min_wait_idx = i;
             }
         }
-        fprintf(fp, " - Minimum Average Waiting Time: %s (%.2f)\n",
+        fprintf(fp, " - Minimum Average Waiting Time (General): %s (%.2f)\n",
                 metrics[min_wait_idx].name,
                 metrics[min_wait_idx].avg_wait_time);
 
-        // 평균 반환 시간이 가장 짧은 알고리즘 찾기
+        // 평균 반환 시간이 가장 짧은 알고리즘 찾기 (일반 알고리즘만)
         int min_turnaround_idx = 0;
-        for (int i = 1; i < 6; i++) {
+        for (int i = 1; i < 7; i++) { // EDF, RMS 제외
             if (metrics[i].avg_turnaround_time <
                 metrics[min_turnaround_idx].avg_turnaround_time) {
                 min_turnaround_idx = i;
             }
         }
-        fprintf(fp, " - Minimum Average Turnaround Time: %s (%.2f)\n",
+        fprintf(fp, " - Minimum Average Turnaround Time (General): %s (%.2f)\n",
                 metrics[min_turnaround_idx].name,
                 metrics[min_turnaround_idx].avg_turnaround_time);
 
         // CPU 사용률이 가장 높은 알고리즘 찾기
         int max_cpu_util_idx = 0;
-        for (int i = 1; i < 6; i++) {
+        for (int i = 1; i < 9; i++) {
             if (metrics[i].cpu_utilization >
                 metrics[max_cpu_util_idx].cpu_utilization) {
                 max_cpu_util_idx = i;
@@ -353,46 +476,52 @@ void compare_algorithms(Process *processes, int count, Config *config) {
 
         // 처리량이 가장 높은 알고리즘 찾기
         int max_throughput_idx = 0;
-        for (int i = 1; i < 6; i++) {
+        for (int i = 1; i < 9; i++) {
             if (metrics[i].throughput >
                 metrics[max_throughput_idx].throughput) {
                 max_throughput_idx = i;
             }
         }
-        fprintf(fp, " - Maximum Throughput: %s (%.4f)\n\n\n",
+        fprintf(fp, " - Maximum Throughput: %s (%.4f)\n",
                 metrics[max_throughput_idx].name,
                 metrics[max_throughput_idx].throughput);
 
-        fprintf(fp, "* Conclusion:\n");
+        // 실시간 스케줄링 성능 분석
+        fprintf(fp, "\n* Real-Time Scheduling Analysis:\n");
+        fprintf(fp, " - EDF Deadline Misses: %d\n",
+                metrics[7].missed_deadlines);
+        fprintf(fp, " - RMS Deadline Misses: %d\n",
+                metrics[8].missed_deadlines);
 
+        if (metrics[7].missed_deadlines == 0 &&
+            metrics[8].missed_deadlines == 0) {
+            fprintf(fp, " - Both EDF and RMS successfully met all deadlines\n");
+        } else if (metrics[7].missed_deadlines < metrics[8].missed_deadlines) {
+            fprintf(fp, " - EDF performed better with fewer deadline misses\n");
+        } else if (metrics[8].missed_deadlines < metrics[7].missed_deadlines) {
+            fprintf(fp, " - RMS performed better with fewer deadline misses\n");
+        } else {
+            fprintf(fp, " - EDF and RMS had equal deadline miss performance\n");
+        }
+
+        fprintf(fp, "\n* Conclusion:\n");
         fprintf(fp,
-                " - For interactive systems where quick user response is "
-                "critical, %s "
-                "is ideal due to its low average waiting time of %.2f ms.\n",
+                " - For interactive systems: %s is ideal (lowest wait time: "
+                "%.2f ms)\n",
                 metrics[min_wait_idx].name,
                 metrics[min_wait_idx].avg_wait_time);
-
-        fprintf(
-            fp,
-            " - For time-sensitive applications requiring fast task "
-            "completion, "
-            "%s performs best with the lowest turnaround time of %.2f ms.\n",
-            metrics[min_turnaround_idx].name,
-            metrics[min_turnaround_idx].avg_turnaround_time);
-
-        fprintf(
-            fp,
-            " - For real-time systems that demand high CPU utilization, %s is "
-            "most suitable with a utilization of %.2f%%.\n",
-            metrics[max_cpu_util_idx].name,
-            metrics[max_cpu_util_idx].cpu_utilization);
-
-        fprintf(
-            fp,
-            " - For batch systems where throughput is important, %s would be "
-            "most appropriate with a throughput of %.4f.\n\n\n\n",
-            metrics[max_throughput_idx].name,
-            metrics[max_throughput_idx].throughput);
+        fprintf(fp,
+                " - For batch processing: %s performs best (lowest turnaround: "
+                "%.2f ms)\n",
+                metrics[min_turnaround_idx].name,
+                metrics[min_turnaround_idx].avg_turnaround_time);
+        fprintf(fp,
+                " - For maximum resource utilization: %s (%.2f%% CPU "
+                "utilization)\n",
+                metrics[max_cpu_util_idx].name,
+                metrics[max_cpu_util_idx].cpu_utilization);
+        fprintf(fp, " - For real-time systems: Choose based on deadline miss "
+                    "requirements\n\n");
 
         fclose(fp);
         printf("Comparison report generated and saved as "
@@ -406,6 +535,7 @@ void compare_algorithms(Process *processes, int count, Config *config) {
     }
 
     free(copy_processes);
+    free(metrics_temp);
 }
 
 void display_performance_summary(Process *processes, int count, int total_time,
@@ -435,8 +565,6 @@ void display_performance_summary(Process *processes, int count, int total_time,
     printf(
         "│ CPU Utilization         : %6.2f %%                             │\n",
         cpu_utilization);
-    printf("│ Total Execution Time    : %6d ms                            │\n",
-           total_time);
 
     print_section_end(64);
 }
@@ -446,33 +574,42 @@ void display_process_table(Process *processes, int count) {
     printf("\n** Process Table **\n");
     printf(
         "+-----+------------+-------------+----------+----------+------------+-"
-        "-------------+-------------+----------------+\n");
+        "-------------+-------------+----------------+----------+----------+---"
+        "---------+\n");
     printf(
         "| PID | Burst Time | Arrive Time | Priority | IO Start | IO Burst   | "
-        "Return Time  | Waiting Time| Turnaround Time|\n");
+        "Return Time  | Waiting Time| Turnaround Time| Deadline | Period   | "
+        "Missed DL  |\n");
     printf(
         "+-----+------------+-------------+----------+----------+------------+-"
-        "-------------+-------------+----------------+\n");
+        "-------------+-------------+----------------+----------+----------+---"
+        "---------+\n");
 
     for (int i = 0; i < count; i++) {
         char io_start_str[10] = "None";
         char io_burst_str[10] = "None";
+        char missed_dl_str[10] = "No";
 
         if (processes[i].io_burst > 0) {
             sprintf(io_start_str, "%d", processes[i].io_start);
             sprintf(io_burst_str, "%d", processes[i].io_burst);
         }
 
+        if (processes[i].missed_deadline) {
+            strcpy(missed_dl_str, "Yes");
+        }
+
         printf("| P%-2d |     %-6d |      %-6d |    %-5d | %-8s | %-10s |      "
-               " %-6d |      %-6d |       %-8d |\n",
+               " %-6d |      %-6d |       %-8d |   %-6d |   %-6d | %-10s |\n",
                processes[i].pid, processes[i].cpu_burst,
                processes[i].arrival_time, processes[i].priority, io_start_str,
                io_burst_str, processes[i].comp_time, processes[i].waiting_time,
-               processes[i].turnaround_time);
+               processes[i].turnaround_time, processes[i].deadline,
+               processes[i].period, missed_dl_str);
 
         printf("+-----+------------+-------------+----------+----------+-------"
                "-----+--------------+-------------+------------"
-               "----+\n");
+               "----+----------+----------+------------+\n");
     }
 }
 
@@ -489,7 +626,7 @@ GanttChart *consolidate_gantt_chart(GanttChart *original) {
     consolidated->count = 1;
 
     for (int i = 1; i < original->count; i++) {
-        int last_idx = consolidated->count - 1;
+        int last_idx = consolidated->count - 1; // 마지막 인덱스 말하는거
 
         if (consolidated->entries[last_idx].process_id ==
             original->entries[i].process_id) {
@@ -525,18 +662,16 @@ void display_gantt_chart(GanttChart *gantt, const char *algorithm_name) {
                        consolidated->entries[i].time_start;
 
         if (consolidated->entries[i].process_id == -1) {
-            // IDLE 처리
             for (j = 0; j < duration - 1; j++) {
-                printf(" ");
+                printf(" "); // duration -1 인 이유는 이게 절반 이기 때문임 -> -- 이게 두문자니까
             }
             printf("ID");
             for (j = 0; j < duration - 1; j++) {
                 printf(" ");
             }
         } else {
-            // 프로세스 처리
             char pid_str[10];
-            sprintf(pid_str, "P%d", consolidated->entries[i].process_id);
+            sprintf(pid_str, "P%d", consolidated->entries[i].process_id); // 문자열 길이 계산 가능해짐 -> 숫자를 문자로
 
             for (j = 0; j < duration - 1; j++) {
                 printf(" ");
@@ -573,6 +708,11 @@ void display_gantt_chart(GanttChart *gantt, const char *algorithm_name) {
         if (end_time > 9) {
             printf("\b");
         }
+
+        if (end_time > 99) {
+            printf("\b");
+        }
+
         printf("%d", end_time);
     }
     printf("\n");

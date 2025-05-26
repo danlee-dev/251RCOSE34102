@@ -29,10 +29,11 @@ typedef struct {
     float cpu_utilization;
     float throughput;
     int total_time;
+    int missed_deadlines;
 } AlgorithmMetrics;
 
-void print_thin_emphasized_header(const char* title, int width);
-void print_emphasized_header(const char* title, int width);
+void print_thin_emphasized_header(const char *title, int width);
+void print_emphasized_header(const char *title, int width);
 void print_section_divider(const char *title, int width);
 void print_section_end(int width);
 

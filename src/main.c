@@ -11,56 +11,73 @@ int main() {
     srand(time(NULL));
 
     int choice;
-    int process_count;
+    int *process_count = malloc(sizeof(int));
 
     printf("===== CPU Scheduling Simulator =====\n");
-    printf("Enter the number of processes: ");
-    scanf("%d", &process_count);
 
-    printf("random create mode? ('y': yes, 'n': no): ");
+    printf("random create mode? ('y': yes, 'n': no, 'f': Use file): ");
     char mode;
     scanf(" %c", &mode);
+
+    if (mode != 'f') {
+        printf("\nEnter the number of processes: ");
+        scanf("%d", process_count);
+    }
 
     Process *processes = create_processes(process_count, mode);
 
     Config system_config;
     init_config(&system_config, mode);
+    int count = *process_count;
 
     while (1) {
-        printf("\n1. Run FCFS\n");
+        printf("\n===== CPU Scheduling Algorithms =====\n");
+        printf("1. Run FCFS\n");
         printf("2. Run SJF (Non-preemptive)\n");
         printf("3. Run SJF (Preemptive)\n");
         printf("4. Run Priority (Non-preemptive)\n");
         printf("5. Run Priority (Preemptive)\n");
-        printf("6. Run Round Robin\n");
-        printf("7. Compare all algorithms\n");
-        printf("8. Exit\n");
+        printf("6. Run Priority with Aging\n");
+        printf("7. Run Round Robin\n");
+        printf("8. Run EDF (Earliest Deadline First)\n");
+        printf("9. Run RMS (Rate Monotonic Scheduling)\n");
+        printf("10. Compare all algorithms\n");
+        printf("11. Exit\n");
         printf("Enter your choice: ");
         scanf("%d", &choice);
 
         switch (choice) {
         case 1:
-            run_fcfs(processes, process_count);
+            run_fcfs(processes, count);
             break;
         case 2:
-            run_sjf_np(processes, process_count);
+            run_sjf_np(processes, count);
             break;
         case 3:
-            run_sjf_p(processes, process_count);
+            run_sjf_p(processes, count);
             break;
         case 4:
-            run_priority_np(processes, process_count);
+            run_priority_np(processes, count);
             break;
         case 5:
-            run_priority_p(processes, process_count);
+            run_priority_p(processes, count);
             break;
         case 6:
-            run_rr(processes, process_count, &system_config);
+            run_priority_with_aging(processes, count);
             break;
         case 7:
-            compare_algorithms(processes, process_count, &system_config);
+            run_rr(processes, count, &system_config);
             break;
         case 8:
+            run_edf(processes, count, &system_config);
+            break;
+        case 9:
+            run_rms(processes, count, &system_config);
+            break;
+        case 10:
+            compare_algorithms(processes, count, &system_config);
+            break;
+        case 11:
             free(processes);
             return 0;
         default:
