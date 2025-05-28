@@ -44,6 +44,7 @@ void compare_algorithms(Process *processes, int count, Config *config);
 void display_performance_summary(Process *processes, int count, int total_time,
                                  int idle_time);
 void display_process_table(Process *processes, int count);
+void display_io_statistics(Process *processes, int count);
 
 GanttChart *consolidate_gantt_chart(GanttChart *original);
 void add_gantt_entry(GanttChart *gantt, int start, int end, int pid,
@@ -52,5 +53,9 @@ void display_gantt_chart(GanttChart *gantt, const char *algorithm_name);
 void display_scheduling_results(Process *processes, int count,
                                 GanttChart *gantt, int total_time,
                                 int idle_time, const char *algorithm_name);
+void save_processes_to_file(Process *processes, int count);
+void list_saved_process_files();
+void show_file_format_example();
+void show_file_management_menu();
 
 #endif

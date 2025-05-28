@@ -18,5 +18,7 @@ Metrics *run_rms(Process *processes, int count, Config *config);
 void insert_by_deadline(Queue *queue, int pid, Process *processes);
 int get_earliest_deadline_process(Queue *queue, Process *processes);
 void remove_from_queue(Queue *queue, int pid);
+void sort_ready_queue_by_remaining_time(Queue *ready_q, Process *processes);
+void sort_ready_queue_by_priority(Queue *ready_q, Process *processes);
 
 #endif

@@ -37,10 +37,10 @@ int main() {
         printf("3. Run SJF (Preemptive)\n");
         printf("4. Run Priority (Non-preemptive)\n");
         printf("5. Run Priority (Preemptive)\n");
-        printf("6. Run Priority with Aging\n");
-        printf("7. Run Round Robin\n");
-        printf("8. Run EDF (Earliest Deadline First)\n");
-        printf("9. Run RMS (Rate Monotonic Scheduling)\n");
+        printf("6. Run Round Robin\n");
+        printf("7. Run Priority with Aging (Preemptive)\n");
+        printf("8. Run RMS (Rate Monotonic Scheduling)\n");
+        printf("9. Run EDF (Earliest Deadline First)\n");
         printf("10. Compare all algorithms\n");
         printf("11. Exit\n");
         printf("Enter your choice: ");
@@ -63,21 +63,23 @@ int main() {
             run_priority_p(processes, count);
             break;
         case 6:
-            run_priority_with_aging(processes, count);
-            break;
-        case 7:
             run_rr(processes, count, &system_config);
             break;
+        case 7:
+            run_priority_with_aging(processes, count);
+            break;
         case 8:
-            run_edf(processes, count, &system_config);
+            run_rms(processes, count, &system_config);
             break;
         case 9:
-            run_rms(processes, count, &system_config);
+            run_edf(processes, count, &system_config);
             break;
         case 10:
             compare_algorithms(processes, count, &system_config);
             break;
         case 11:
+            if (mode != 'f')
+                save_processes_to_file(processes, count);
             free(processes);
             return 0;
         default:
