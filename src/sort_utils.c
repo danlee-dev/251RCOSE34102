@@ -92,19 +92,6 @@ void insert_sorted(Queue *queue, Process *processes, int pid, SortCriteria crite
     }
 }
 
-// 편의 함수들 (기존 코드와의 호환성을 위해)
-void sort_ready_queue_by_priority(Queue *ready_q, Process *processes) {
-    sort_queue(ready_q, processes, SORT_BY_PRIORITY);
-}
-
-void sort_ready_queue_by_remaining_time(Queue *ready_q, Process *processes) {
-    sort_queue(ready_q, processes, SORT_BY_REMAINING_TIME);
-}
-
-void sort_ready_queue_by_deadline(Queue *ready_q, Process *processes) {
-    sort_queue(ready_q, processes, SORT_BY_DEADLINE);
-}
-
 
 void insert_by_deadline(Queue *queue, int pid, Process *processes) {
     if (is_empty(queue)) {

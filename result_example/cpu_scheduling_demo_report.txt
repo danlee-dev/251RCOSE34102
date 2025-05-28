@@ -1,0 +1,122 @@
+=======================================================================================
+                    CPU SCHEDULING SIMULATOR - COMPREHENSIVE REPORT
+=======================================================================================
+
+SIMULATION CONFIGURATION:
+-------------------------
+• Number of processes: 4
+• Time quantum (Round Robin): 2 time units
+• Simulation duration: Variable (until completion)
+• Multi-I/O support: Enabled
+• Priority range: 1-10 (1 = highest priority)
+• CPU burst range: 1-10 time units
+• I/O burst range: 1-5 time units
+
+PROCESS CONFIGURATION:
+----------------------
++-----+--------+----------+----------+----------+----------+----------+
+| PID | Arrival| CPU Burst| Priority | Deadline | Period   | I/O Ops  |
++-----+--------+----------+----------+----------+----------+----------+
+| P0  |   4    |    10    |    6     |    28    |    50    |    1     |
+| P1  |   8    |    8     |    4     |    35    |    60    |    2     |
+| P2  |   4    |    8     |    10    |    32    |    65    |    2     |
+| P3  |   8    |    1     |    5     |    22    |    35    |    0     |
++-----+--------+----------+----------+----------+----------+----------+
+
+UTILIZATION ANALYSIS:
+---------------------
+• Total System Utilization: 0.800 (80.01%)
+• RMS Theoretical Bound: 0.757 (75.68%)
+• EDF Theoretical Bound: 1.000 (100.00%)
+
+Schedulability Prediction:
+• EDF: SCHEDULABLE (Utilization <= 100%)
+• RMS: UNCERTAIN (Utilization > 75.68%)
+
+PERFORMANCE METRICS COMPARISON:
+================================
++----------------------+----------+----------+----------+----------+----------+------------+
+| Algorithm            | Avg Wait | Avg Turn | CPU Util | Thru-put | DL Miss  | Efficiency |
+|                      | Time(ms) | Time(ms) |   (%)    | (proc/s) | Count    | Score      |
++----------------------+----------+----------+----------+----------+----------+------------+
+| FCFS                 |     6.25 |    17.75 |    87.10 |  12.9032 |      N/A |      0.355 |
+| NP SJF               |     5.25 |    16.75 |    87.10 |  12.9032 |      N/A |      0.428 |
+| P SJF                |     4.50 |    16.00 |    81.82 |  12.1212 |      N/A |      0.465 |
+| NP Priority          |     7.00 |    18.50 |    77.14 |  11.4286 |      N/A |      0.266 |
+| P Priority           |     7.00 |    18.50 |    67.50 |  10.0000 |      N/A |      0.233 |
+| Round Robin          |     7.00 |    18.50 |    87.10 |  12.9032 |      N/A |      0.300 |
+| Priority+Aging       |     7.00 |    18.50 |    67.50 |  10.0000 |      N/A |      0.233 |
+| EDF                  |      N/A |      N/A |    56.67 |   8.3333 |        0 |      0.825 |
+| RMS                  |      N/A |      N/A |    56.67 |   8.3333 |        1 |      0.325 |
++----------------------+----------+----------+----------+----------+----------+------------+
+
+DETAILED ANALYSIS:
+==================
+
+1. GENERAL SCHEDULING ALGORITHMS:
+   -------------------------------
+   • Best for Interactive Systems: Preemptive SJF
+     - Lowest average waiting time: 4.50 ms
+     - CPU utilization: 81.82%
+
+   • Best for Batch Processing: Preemptive SJF
+     - Lowest average turnaround time: 16.00 ms
+     - Throughput: 12.1212 processes/second
+
+   • Most Resource Efficient: FCFS
+     - Highest CPU utilization: 87.10%
+     - System idle time minimized
+
+2. REAL-TIME SCHEDULING ALGORITHMS:
+   ---------------------------------
+   • EDF (Earliest Deadline First):
+     - Deadline misses: 0
+     - CPU utilization: 56.67%
+     - Theoretical optimality: Optimal up to 100% utilization
+     - Dynamic priority assignment based on deadlines
+
+   • RMS (Rate Monotonic Scheduling):
+     - Deadline misses: 1
+     - CPU utilization: 56.67%
+     - Theoretical bound: 75.68% for 4 processes
+     - Fixed priority assignment based on periods
+
+3. REAL-TIME PERFORMANCE COMPARISON:
+   ----------------------------------
+   • EDF outperformed RMS with fewer deadline misses
+   • System utilization (80.01%) exceeds RMS bound (75.68%)
+   • EDF's dynamic priority proved more effective
+
+4. MULTI-I/O IMPACT ANALYSIS:
+   ---------------------------
+   • Total I/O operations: 5
+   • Total I/O time: 19 time units
+   • Average I/O per process: 1.25 operations
+   • I/O impact on scheduling: Significant - increases context switching
+
+5. RECOMMENDATIONS:
+   ----------------
+   Based on the analysis results:
+
+   • For General Purpose Systems:
+     - Use Preemptive SJF for lowest response time
+     - Use Preemptive SJF for highest throughput
+
+   • For Real-Time Systems:
+     - EDF is strongly recommended
+     - RMS may experience deadline misses
+     - Consider reducing system load for RMS
+
+6. SYSTEM CHARACTERISTICS:
+   -----------------------
+   • Workload type: I/O Intensive
+   • Real-time feasibility: Feasible with EDF
+   • Priority inversion risk: Present due to I/O operations
+   • Scalability: Good
+
+===============================================================================
+Report generated by CPU Scheduling Simulator v1.0
+Analysis includes 9 algorithms with comprehensive metrics
+Copyright © 2025 Seongmin Lee
+Licensed under the MIT License
+===============================================================================

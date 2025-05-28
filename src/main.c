@@ -10,6 +10,8 @@
 int main() {
     srand(time(NULL));
 
+    int max_time; // for EDF, RMS
+
     int choice;
     int *process_count = malloc(sizeof(int));
 
@@ -69,13 +71,19 @@ int main() {
             run_priority_with_aging(processes, count);
             break;
         case 8:
-            run_rms(processes, count, &system_config);
+            printf("Enter max time(for RMS): ");
+            scanf("%d", &max_time);
+            run_rms(processes, count, &system_config, max_time);
             break;
         case 9:
-            run_edf(processes, count, &system_config);
+            printf("Enter max time(for EDF): ");
+            scanf("%d", &max_time);
+            run_edf(processes, count, &system_config, max_time);
             break;
         case 10:
-            compare_algorithms(processes, count, &system_config);
+            printf("Enter max time(for EDF, RMS): ");
+            scanf("%d", &max_time);
+            compare_algorithms(processes, count, &system_config, max_time);
             break;
         case 11:
             if (mode != 'f')

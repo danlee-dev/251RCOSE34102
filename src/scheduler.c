@@ -112,15 +112,15 @@ Metrics *run_fcfs(Process *processes, int count) {
         }
 
         // 디버깅용 ready queue 상태 출력 (간소화)
-        if (!is_empty(&ready_q)) { // 5시간마다 출력
-            printf("Time %d Ready Queue: ", time);
-            for (int i = ready_q.front, cnt = 0; cnt < ready_q.count;
-                 cnt++, i = (i + 1) % MAX_QUEUE_SIZE) {
-                int pid = ready_q.data[i];
-                printf("P%d ", pid);
-            }
-            printf("\n");
-        }
+        // if (!is_empty(&ready_q)) { // 5시간마다 출력
+        //     printf("Time %d Ready Queue: ", time);
+        //     for (int i = ready_q.front, cnt = 0; cnt < ready_q.count;
+        //          cnt++, i = (i + 1) % MAX_QUEUE_SIZE) {
+        //         int pid = ready_q.data[i];
+        //         printf("P%d ", pid);
+        //     }
+        //     printf("\n");
+        // }
 
         time++;
     }
@@ -128,8 +128,8 @@ Metrics *run_fcfs(Process *processes, int count) {
     metrics->total_time = time;
     metrics->idle_time = idle_time;
 
-    printf("\nScheduling completed at time %d\n", time);
-    printf("Total idle time: %d\n", idle_time);
+    // printf("\nScheduling completed at time %d\n", time);
+    // printf("Total idle time: %d\n", idle_time);
 
     display_scheduling_results(processes, count, &gantt, time, idle_time,
                                "FCFS Multi-I/O");
@@ -290,16 +290,16 @@ Metrics *run_sjf_np(Process *processes, int count) {
         }
 
         // 디버깅용 ready queue 상태 출력 (간소화)
-        if (!is_empty(&ready_q)) { // 5시간마다 출력
-            printf("Time %d Ready Queue: ", time);
-            for (int i = ready_q.front, cnt = 0; cnt < ready_q.count;
-                 cnt++, i = (i + 1) % MAX_QUEUE_SIZE) {
-                int pid = ready_q.data[i];
-                printf("P%d(rem:%d) ", pid,
-                       processes[pid].cpu_burst - processes[pid].progress);
-            }
-            printf("\n");
-        }
+        // if (!is_empty(&ready_q)) { // 5시간마다 출력
+        //     printf("Time %d Ready Queue: ", time);
+        //     for (int i = ready_q.front, cnt = 0; cnt < ready_q.count;
+        //          cnt++, i = (i + 1) % MAX_QUEUE_SIZE) {
+        //         int pid = ready_q.data[i];
+        //         printf("P%d(rem:%d) ", pid,
+        //                processes[pid].cpu_burst - processes[pid].progress);
+        //     }
+        //     printf("\n");
+        // }
 
         time++;
     }
@@ -307,20 +307,20 @@ Metrics *run_sjf_np(Process *processes, int count) {
     metrics->total_time = time;
     metrics->idle_time = idle_time;
 
-    printf("\nNon-Preemptive SJF scheduling completed at time %d\n", time);
-    printf("Total idle time: %d\n", idle_time);
+    // printf("\nNon-Preemptive SJF scheduling completed at time %d\n", time);
+    // printf("Total idle time: %d\n", idle_time);
 
     // 평균 통계 계산 및 출력
-    double avg_waiting = 0, avg_turnaround = 0;
-    for (int i = 0; i < count; i++) {
-        avg_waiting += processes[i].waiting_time;
-        avg_turnaround += processes[i].turnaround_time;
-    }
-    avg_waiting /= count;
-    avg_turnaround /= count;
+    // double avg_waiting = 0, avg_turnaround = 0;
+    // for (int i = 0; i < count; i++) {
+    //     avg_waiting += processes[i].waiting_time;
+    //     avg_turnaround += processes[i].turnaround_time;
+    // }
+    // avg_waiting /= count;
+    // avg_turnaround /= count;
 
-    printf("Average Waiting Time: %.2f\n", avg_waiting);
-    printf("Average Turnaround Time: %.2f\n", avg_turnaround);
+    // printf("Average Waiting Time: %.2f\n", avg_waiting);
+    // printf("Average Turnaround Time: %.2f\n", avg_turnaround);
 
     display_scheduling_results(processes, count, &gantt, time, idle_time,
                                "Non-Preemptive SJF Multi-I/O");
@@ -541,16 +541,16 @@ Metrics *run_sjf_p(Process *processes, int count) {
         }
 
         // 디버깅용 ready queue 상태 출력 (간소화)
-        if (!is_empty(&ready_q)) { // 5시간마다 출력
-            printf("Time %d Ready Queue: ", time);
-            for (int i = ready_q.front, cnt = 0; cnt < ready_q.count;
-                 cnt++, i = (i + 1) % MAX_QUEUE_SIZE) {
-                int pid = ready_q.data[i];
-                printf("P%d(rem:%d) ", pid,
-                       processes[pid].cpu_burst - processes[pid].progress);
-            }
-            printf("\n");
-        }
+        // if (!is_empty(&ready_q)) { // 5시간마다 출력
+        //     printf("Time %d Ready Queue: ", time);
+        //     for (int i = ready_q.front, cnt = 0; cnt < ready_q.count;
+        //          cnt++, i = (i + 1) % MAX_QUEUE_SIZE) {
+        //         int pid = ready_q.data[i];
+        //         printf("P%d(rem:%d) ", pid,
+        //                processes[pid].cpu_burst - processes[pid].progress);
+        //     }
+        //     printf("\n");
+        // }
 
         time++;
     }
@@ -558,20 +558,20 @@ Metrics *run_sjf_p(Process *processes, int count) {
     metrics->total_time = time;
     metrics->idle_time = idle_time;
 
-    printf("\nPreemptive SJF scheduling completed at time %d\n", time);
-    printf("Total idle time: %d\n", idle_time);
+    // printf("\nPreemptive SJF scheduling completed at time %d\n", time);
+    // printf("Total idle time: %d\n", idle_time);
 
     // 평균 통계 계산 및 출력
-    double avg_waiting = 0, avg_turnaround = 0;
-    for (int i = 0; i < count; i++) {
-        avg_waiting += processes[i].waiting_time;
-        avg_turnaround += processes[i].turnaround_time;
-    }
-    avg_waiting /= count;
-    avg_turnaround /= count;
+    // double avg_waiting = 0, avg_turnaround = 0;
+    // for (int i = 0; i < count; i++) {
+    //     avg_waiting += processes[i].waiting_time;
+    //     avg_turnaround += processes[i].turnaround_time;
+    // }
+    // avg_waiting /= count;
+    // avg_turnaround /= count;
 
-    printf("Average Waiting Time: %.2f\n", avg_waiting);
-    printf("Average Turnaround Time: %.2f\n", avg_turnaround);
+    // printf("Average Waiting Time: %.2f\n", avg_waiting);
+    // printf("Average Turnaround Time: %.2f\n", avg_turnaround);
 
     display_scheduling_results(processes, count, &gantt, time, idle_time,
                                "Preemptive SJF Multi-I/O");
@@ -728,15 +728,15 @@ Metrics *run_priority_np(Process *processes, int count) {
         }
 
         // 디버깅용 ready queue 상태 출력 (간소화)
-        if (!is_empty(&ready_q)) { // 5시간마다 출력
-            printf("Time %d Ready Queue (Priority order): ", time);
-            for (int i = ready_q.front, cnt = 0; cnt < ready_q.count;
-                 cnt++, i = (i + 1) % MAX_QUEUE_SIZE) {
-                int pid = ready_q.data[i];
-                printf("P%d(pri:%d) ", pid, processes[pid].priority);
-            }
-            printf("\n");
-        }
+        // if (!is_empty(&ready_q)) { // 5시간마다 출력
+        //     printf("Time %d Ready Queue (Priority order): ", time);
+        //     for (int i = ready_q.front, cnt = 0; cnt < ready_q.count;
+        //          cnt++, i = (i + 1) % MAX_QUEUE_SIZE) {
+        //         int pid = ready_q.data[i];
+        //         printf("P%d(pri:%d) ", pid, processes[pid].priority);
+        //     }
+        //     printf("\n");
+        // }
 
         time++;
     }
@@ -744,20 +744,20 @@ Metrics *run_priority_np(Process *processes, int count) {
     metrics->total_time = time;
     metrics->idle_time = idle_time;
 
-    printf("\nNon-Preemptive Priority scheduling completed at time %d\n", time);
-    printf("Total idle time: %d\n", idle_time);
+    // printf("\nNon-Preemptive Priority scheduling completed at time %d\n",
+    // time); printf("Total idle time: %d\n", idle_time);
 
     // 평균 통계 계산 및 출력
-    double avg_waiting = 0, avg_turnaround = 0;
-    for (int i = 0; i < count; i++) {
-        avg_waiting += processes[i].waiting_time;
-        avg_turnaround += processes[i].turnaround_time;
-    }
-    avg_waiting /= count;
-    avg_turnaround /= count;
+    // double avg_waiting = 0, avg_turnaround = 0;
+    // for (int i = 0; i < count; i++) {
+    //     avg_waiting += processes[i].waiting_time;
+    //     avg_turnaround += processes[i].turnaround_time;
+    // }
+    // avg_waiting /= count;
+    // avg_turnaround /= count;
 
-    printf("Average Waiting Time: %.2f\n", avg_waiting);
-    printf("Average Turnaround Time: %.2f\n", avg_turnaround);
+    // printf("Average Waiting Time: %.2f\n", avg_waiting);
+    // printf("Average Turnaround Time: %.2f\n", avg_turnaround);
 
     display_scheduling_results(processes, count, &gantt, time, idle_time,
                                "Non-Preemptive Priority Multi-I/O");
@@ -964,15 +964,15 @@ Metrics *run_priority_p(Process *processes, int count) {
         }
 
         // 디버깅용 ready queue 상태 출력 (간소화)
-        if (!is_empty(&ready_q)) { // 5시간마다 출력
-            printf("Time %d Ready Queue (Priority order): ", time);
-            for (int i = ready_q.front, cnt = 0; cnt < ready_q.count;
-                 cnt++, i = (i + 1) % MAX_QUEUE_SIZE) {
-                int pid = ready_q.data[i];
-                printf("P%d(pri:%d) ", pid, processes[pid].priority);
-            }
-            printf("\n");
-        }
+        // if (!is_empty(&ready_q)) { // 5시간마다 출력
+        //     printf("Time %d Ready Queue (Priority order): ", time);
+        //     for (int i = ready_q.front, cnt = 0; cnt < ready_q.count;
+        //          cnt++, i = (i + 1) % MAX_QUEUE_SIZE) {
+        //         int pid = ready_q.data[i];
+        //         printf("P%d(pri:%d) ", pid, processes[pid].priority);
+        //     }
+        //     printf("\n");
+        // }
 
         time++;
     }
@@ -980,20 +980,20 @@ Metrics *run_priority_p(Process *processes, int count) {
     metrics->total_time = time;
     metrics->idle_time = idle_time;
 
-    printf("\nPreemptive Priority scheduling completed at time %d\n", time);
-    printf("Total idle time: %d\n", idle_time);
+    // printf("\nPreemptive Priority scheduling completed at time %d\n", time);
+    // printf("Total idle time: %d\n", idle_time);
 
     // 평균 통계 계산 및 출력
-    double avg_waiting = 0, avg_turnaround = 0;
-    for (int i = 0; i < count; i++) {
-        avg_waiting += processes[i].waiting_time;
-        avg_turnaround += processes[i].turnaround_time;
-    }
-    avg_waiting /= count;
-    avg_turnaround /= count;
+    // double avg_waiting = 0, avg_turnaround = 0;
+    // for (int i = 0; i < count; i++) {
+    //     avg_waiting += processes[i].waiting_time;
+    //     avg_turnaround += processes[i].turnaround_time;
+    // }
+    // avg_waiting /= count;
+    // avg_turnaround /= count;
 
-    printf("Average Waiting Time: %.2f\n", avg_waiting);
-    printf("Average Turnaround Time: %.2f\n", avg_turnaround);
+    // printf("Average Waiting Time: %.2f\n", avg_waiting);
+    // printf("Average Turnaround Time: %.2f\n", avg_turnaround);
 
     display_scheduling_results(processes, count, &gantt, time, idle_time,
                                "Preemptive Priority Multi-I/O");
@@ -1118,16 +1118,16 @@ Metrics *run_rr(Process *processes, int count, Config *config) {
         }
 
         // 디버깅용 ready queue 상태 출력 (간소화)
-        if (!is_empty(&ready_q)) { // 5시간마다 출력
-            printf("Time %d Ready Queue: ", time);
-            for (int i = ready_q.front, cnt = 0; cnt < ready_q.count;
-                 cnt++, i = (i + 1) % MAX_QUEUE_SIZE) {
-                int pid = ready_q.data[i];
-                printf("P%d(prog:%d/%d) ", pid, processes[pid].progress,
-                       processes[pid].cpu_burst);
-            }
-            printf("\n");
-        }
+        // if (!is_empty(&ready_q)) { // 5시간마다 출력
+        //     printf("Time %d Ready Queue: ", time);
+        //     for (int i = ready_q.front, cnt = 0; cnt < ready_q.count;
+        //          cnt++, i = (i + 1) % MAX_QUEUE_SIZE) {
+        //         int pid = ready_q.data[i];
+        //         printf("P%d(prog:%d/%d) ", pid, processes[pid].progress,
+        //                processes[pid].cpu_burst);
+        //     }
+        //     printf("\n");
+        // }
 
         time++;
     }
@@ -1135,25 +1135,25 @@ Metrics *run_rr(Process *processes, int count, Config *config) {
     metrics->total_time = time;
     metrics->idle_time = idle_time;
 
-    printf("\nRound Robin scheduling completed at time %d\n", time);
-    printf("Total idle time: %d\n", idle_time);
+    // printf("\nRound Robin scheduling completed at time %d\n", time);
+    // printf("Total idle time: %d\n", idle_time);
 
-    // Round Robin 성능 분석
-    printf("\nRound Robin Performance Analysis:\n");
-    printf("Time Quantum: %d\n", quantum);
+    // // Round Robin 성능 분석
+    // printf("\nRound Robin Performance Analysis:\n");
+    // printf("Time Quantum: %d\n", quantum);
 
-    // 평균 통계 계산 및 출력
-    double avg_waiting = 0, avg_turnaround = 0;
+    // // 평균 통계 계산 및 출력
+    // double avg_waiting = 0, avg_turnaround = 0;
 
-    for (int i = 0; i < count; i++) {
-        avg_waiting += processes[i].waiting_time;
-        avg_turnaround += processes[i].turnaround_time;
-    }
-    avg_waiting /= count;
-    avg_turnaround /= count;
+    // for (int i = 0; i < count; i++) {
+    //     avg_waiting += processes[i].waiting_time;
+    //     avg_turnaround += processes[i].turnaround_time;
+    // }
+    // avg_waiting /= count;
+    // avg_turnaround /= count;
 
-    printf("Average Waiting Time: %.2f\n", avg_waiting);
-    printf("Average Turnaround Time: %.2f\n", avg_turnaround);
+    // printf("Average Waiting Time: %.2f\n", avg_waiting);
+    // printf("Average Turnaround Time: %.2f\n", avg_turnaround);
 
     display_scheduling_results(processes, count, &gantt, time, idle_time,
                                "Round Robin Multi-I/O");
@@ -1469,15 +1469,15 @@ Metrics *run_priority_with_aging(Process *processes, int count) {
         }
 
         // 디버깅용 ready queue 상태 출력 (간소화)
-        if (!is_empty(&ready_q)) { // 5시간마다 출력
-            printf("Time %d Ready Queue: ", time);
-            for (int i = ready_q.front, cnt = 0; cnt < ready_q.count;
-                 cnt++, i = (i + 1) % MAX_QUEUE_SIZE) {
-                int pid = ready_q.data[i];
-                printf("P%d(pri:%d)", pid, processes[pid].priority);
-            }
-            printf("\n");
-        }
+        // if (!is_empty(&ready_q)) { // 5시간마다 출력
+        //     printf("Time %d Ready Queue: ", time);
+        //     for (int i = ready_q.front, cnt = 0; cnt < ready_q.count;
+        //          cnt++, i = (i + 1) % MAX_QUEUE_SIZE) {
+        //         int pid = ready_q.data[i];
+        //         printf("P%d(pri:%d)", pid, processes[pid].priority);
+        //     }
+        //     printf("\n");
+        // }
 
         time++;
     }
@@ -1488,13 +1488,14 @@ Metrics *run_priority_with_aging(Process *processes, int count) {
     metrics->idle_time = idle_time;
 
     // Aging 효과 분석
-    printf("** Aging Analysis **\n");
-    printf("Aging Threshold: %d time units\n", AGING_THRESHOLD);
-    for (int i = 0; i < count; i++) {
-        printf("P%d: Initial Priority %d → Final Priority %d (Change: %d)\n", i,
-               p_copy[i].priority, processes[i].priority,
-               p_copy[i].priority - processes[i].priority);
-    }
+    // printf("** Aging Analysis **\n");
+    // printf("Aging Threshold: %d time units\n", AGING_THRESHOLD);
+    // for (int i = 0; i < count; i++) {
+    //     printf("P%d: Initial Priority %d → Final Priority %d (Change: %d)\n",
+    //     i,
+    //            p_copy[i].priority, processes[i].priority,
+    //            p_copy[i].priority - processes[i].priority);
+    // }
 
     // 원래 우선순위로 복원
     for (int i = 0; i < count; i++) {
@@ -1512,7 +1513,7 @@ Metrics *run_priority_with_aging(Process *processes, int count) {
     return metrics;
 }
 
-Metrics *run_rms(Process *processes, int count, Config *config) {
+Metrics *run_rms(Process *processes, int count, Config *config, int max_time) {
     printf("\n");
     print_thin_emphasized_header("Rate Monotonic Scheduling with Multi-I/O",
                                  150);
@@ -1558,6 +1559,8 @@ Metrics *run_rms(Process *processes, int count, Config *config) {
     int time = 0;
     int idle_time = 0;
 
+    print_utilization_analysis(original_processes, count, "RMS");
+
     printf("\n** Process Period Information (Lower Period = Higher Priority) "
            "**\n");
     printf("+------+-------------+------------+------------+------------+------"
@@ -1584,7 +1587,7 @@ Metrics *run_rms(Process *processes, int count, Config *config) {
 
     int has_missed = 0;
 
-    while (time < 70) {
+    while (time < max_time) {
         // I/O 완료 처리
         for (int i = 0; i < total_process_count; i++) {
             if (waiting_q[i] > 0) {
@@ -1701,7 +1704,7 @@ Metrics *run_rms(Process *processes, int count, Config *config) {
                 int io_burst = get_io_burst_at_progress(
                     &all_processes[io_process],
                     all_processes[io_process].progress);
-                waiting_q[io_process] = io_burst;
+                waiting_q[io_process] = io_burst + 1;
                 dequeue(&running_q);
             }
             // 프로세스 완료 처리
@@ -1749,16 +1752,16 @@ Metrics *run_rms(Process *processes, int count, Config *config) {
         }
 
         // 디버깅용 ready queue 상태 출력
-        if (!is_empty(&ready_q)) {
-            printf("Time %d Ready Queue (Period order): ", time);
-            for (int i = ready_q.front, cnt = 0; cnt < ready_q.count;
-                 cnt++, i = (i + 1) % MAX_QUEUE_SIZE) {
-                int pid = ready_q.data[i];
-                printf("P%d(period:%d) ", all_processes[pid].pid,
-                       all_processes[pid].period);
-            }
-            printf("\n");
-        }
+        // if (!is_empty(&ready_q)) {
+        //     printf("Time %d Ready Queue (Period order): ", time);
+        //     for (int i = ready_q.front, cnt = 0; cnt < ready_q.count;
+        //          cnt++, i = (i + 1) % MAX_QUEUE_SIZE) {
+        //         int pid = ready_q.data[i];
+        //         printf("P%d(period:%d) ", all_processes[pid].pid,
+        //                all_processes[pid].period);
+        //     }
+        //     printf("\n");
+        // }
 
         time++;
     }
@@ -1770,6 +1773,8 @@ Metrics *run_rms(Process *processes, int count, Config *config) {
 
     metrics->total_time = time;
     metrics->idle_time = idle_time;
+    metrics->for_edf_rms_processes = all_processes;
+    metrics->for_edf_rms_counter = total_process_count;
 
     printf("** Total Deadline Misses: %d **\n",
            config->deadline_miss_info_count);
@@ -1789,7 +1794,7 @@ Metrics *run_rms(Process *processes, int count, Config *config) {
     return metrics;
 }
 
-Metrics *run_edf(Process *processes, int count, Config *config) {
+Metrics *run_edf(Process *processes, int count, Config *config, int max_time) {
     printf("\n");
     print_thin_emphasized_header(
         "Earliest Deadline First Scheduling with Multi-I/O", 150);
@@ -1835,6 +1840,8 @@ Metrics *run_edf(Process *processes, int count, Config *config) {
     int time = 0;
     int idle_time = 0;
 
+    print_utilization_analysis(original_processes, count, "EDF");
+
     printf("\n** Process Deadline Information **\n");
     printf("+------+-------------+------------+------------+------------+------"
            "------+-----+\n");
@@ -1860,7 +1867,7 @@ Metrics *run_edf(Process *processes, int count, Config *config) {
 
     int has_missed = 0;
 
-    while (time < 70) {
+    while (time < max_time) {
         // I/O 완료 처리
         for (int i = 0; i < total_process_count; i++) {
             if (waiting_q[i] > 0) {
@@ -1977,7 +1984,7 @@ Metrics *run_edf(Process *processes, int count, Config *config) {
                 int io_burst = get_io_burst_at_progress(
                     &all_processes[io_process],
                     all_processes[io_process].progress);
-                waiting_q[io_process] = io_burst;
+                waiting_q[io_process] = io_burst + 1;
                 dequeue(&running_q);
             }
             // 프로세스 완료 처리
@@ -2025,16 +2032,16 @@ Metrics *run_edf(Process *processes, int count, Config *config) {
         }
 
         // 디버깅용 ready queue 상태 출력
-        if (!is_empty(&ready_q)) {
-            printf("Time %d Ready Queue (Deadline order): ", time);
-            for (int i = ready_q.front, cnt = 0; cnt < ready_q.count;
-                 cnt++, i = (i + 1) % MAX_QUEUE_SIZE) {
-                int pid = ready_q.data[i];
-                printf("P%d(dl:%d) ", all_processes[pid].pid,
-                       all_processes[pid].deadline);
-            }
-            printf("\n");
-        }
+        // if (!is_empty(&ready_q)) {
+        //     printf("Time %d Ready Queue (Deadline order): ", time);
+        //     for (int i = ready_q.front, cnt = 0; cnt < ready_q.count;
+        //          cnt++, i = (i + 1) % MAX_QUEUE_SIZE) {
+        //         int pid = ready_q.data[i];
+        //         printf("P%d(dl:%d) ", all_processes[pid].pid,
+        //                all_processes[pid].deadline);
+        //     }
+        //     printf("\n");
+        // }
 
         time++;
     }
@@ -2046,7 +2053,8 @@ Metrics *run_edf(Process *processes, int count, Config *config) {
 
     metrics->total_time = time;
     metrics->idle_time = idle_time;
-
+    metrics->for_edf_rms_processes = all_processes;
+    metrics->for_edf_rms_counter = total_process_count;
     printf("** Total Deadline Misses: %d **\n",
            config->deadline_miss_info_count);
 

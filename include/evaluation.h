@@ -20,6 +20,8 @@ typedef struct {
 typedef struct {
     int total_time;
     int idle_time;
+    Process *for_edf_rms_processes;
+    int for_edf_rms_counter;
 } Metrics;
 
 typedef struct {
@@ -39,7 +41,8 @@ void print_section_end(int width);
 
 void display_metrics(Process *processes, int count, int total_time,
                      int idle_time);
-void compare_algorithms(Process *processes, int count, Config *config);
+void compare_algorithms(Process *processes, int count, Config *config,
+                        int max_time);
 
 void display_performance_summary(Process *processes, int count, int total_time,
                                  int idle_time);
@@ -54,8 +57,8 @@ void display_scheduling_results(Process *processes, int count,
                                 GanttChart *gantt, int total_time,
                                 int idle_time, const char *algorithm_name);
 void save_processes_to_file(Process *processes, int count);
-void list_saved_process_files();
-void show_file_format_example();
-void show_file_management_menu();
+
+void print_utilization_analysis(Process *original_processes, int count,
+                                const char *algorithm_name);
 
 #endif

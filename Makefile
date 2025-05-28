@@ -13,7 +13,7 @@ TARGET = cpu_simulator
 all: $(TARGET)
 
 $(TARGET): $(OBJS)
-	$(CC) $(CFLAGS) -o $@ $^
+	$(CC) $(CFLAGS) -o $@ $^ -lm
 
 $(OBJDIR)/%.o: $(SRCDIR)/%.c $(INCDIR)/*.h | $(OBJDIR)
 	$(CC) $(CFLAGS) $(INCS) -c $< -o $@

@@ -5,6 +5,7 @@
 #include "scheduler.h"
 #include <dirent.h> // DIR, struct dirent, opendir, readdir, closedir
 #include <limits.h> // INT_MAX 등의 상수 정의
+#include <math.h>
 #include <stdint.h>
 #include <stdio.h>
 #include <stdlib.h>
@@ -75,7 +76,8 @@ void add_gantt_entry(GanttChart *gantt, int start, int end, int pid,
     }
 }
 
-void compare_algorithms(Process *processes, int count, Config *config) {
+void compare_algorithms(Process *processes, int count, Config *config,
+                        int max_time) {
     print_emphasized_header("Algorithm Comparison", 150);
 
     AlgorithmMetrics metrics[9];
@@ -265,63 +267,29 @@ void compare_algorithms(Process *processes, int count, Config *config) {
     metrics[6].total_time = metrics_temp->total_time;
     metrics[6].missed_deadlines = 0;
 
-    // 8. EDF
-    for (int i = 0; i < count; i++) {
-        processes[i] = copy_processes[i];
-    }
-    reset_processes(processes, count);
-    metrics_temp = run_edf(processes, count, config);
-
-    total_waiting = 0;
-    int edf_completed_processes = 0;
-    int edf_missed_deadlines = config->deadline_miss_info_count;
-
-    for (int i = 0; i < count; i++) {
-        if (processes[i].comp_time > 0) {
-            total_waiting += processes[i].waiting_time;
-            edf_completed_processes++;
-        }
-    }
-
-    strcpy(metrics[7].name, "EDF");
-    metrics[7].avg_wait_time =
-        edf_completed_processes > 0
-            ? (float)total_waiting / edf_completed_processes
-            : 0.0;
-    metrics[7].avg_turnaround_time =
-        -1.0; // EDF는 turnaround time을 계산하지 않음
-    metrics[7].cpu_utilization =
-        ((float)(metrics_temp->total_time - metrics_temp->idle_time) /
-         metrics_temp->total_time) *
-        100.0;
-    metrics[7].throughput =
-        ((float)edf_completed_processes / metrics_temp->total_time) * 100.0;
-    metrics[7].total_time = metrics_temp->total_time;
-    metrics[7].missed_deadlines = edf_missed_deadlines;
-
     // 9. RMS
     for (int i = 0; i < count; i++) {
         processes[i] = copy_processes[i];
     }
     reset_processes(processes, count);
-    metrics_temp = run_rms(processes, count, config);
+    metrics_temp = run_rms(processes, count, config, max_time);
+    int rms_counter = metrics_temp->for_edf_rms_counter;
 
     total_waiting = 0;
     int rms_completed_processes = 0;
     int rms_missed_deadlines = config->deadline_miss_info_count;
 
-    for (int i = 0; i < count; i++) {
-        if (processes[i].comp_time > 0) {
-            total_waiting += processes[i].waiting_time;
+    for (int i = 0; i < rms_counter; i++) {
+        if (metrics_temp->for_edf_rms_processes[i].comp_time > 0) {
+            total_waiting +=
+                metrics_temp->for_edf_rms_processes[i].waiting_time;
             rms_completed_processes++;
         }
     }
 
     strcpy(metrics[8].name, "RMS");
     metrics[8].avg_wait_time =
-        rms_completed_processes > 0
-            ? (float)total_waiting / rms_completed_processes
-            : 0.0;
+        rms_completed_processes > 0 ? (float)total_waiting / rms_counter : 0.0;
     metrics[8].avg_turnaround_time =
         -1.0; // RMS는 turnaround time을 계산하지 않음
     metrics[8].cpu_utilization =
@@ -332,6 +300,40 @@ void compare_algorithms(Process *processes, int count, Config *config) {
         ((float)rms_completed_processes / metrics_temp->total_time) * 100.0;
     metrics[8].total_time = metrics_temp->total_time;
     metrics[8].missed_deadlines = rms_missed_deadlines;
+
+    // 8. EDF
+    for (int i = 0; i < count; i++) {
+        processes[i] = copy_processes[i];
+    }
+    reset_processes(processes, count);
+    metrics_temp = run_edf(processes, count, config, max_time);
+    int edf_counter = metrics_temp->for_edf_rms_counter;
+
+    total_waiting = 0;
+    int edf_completed_processes = 0;
+    int edf_missed_deadlines = config->deadline_miss_info_count;
+
+    for (int i = 0; i < edf_counter; i++) {
+        if (metrics_temp->for_edf_rms_processes[i].comp_time > 0) {
+            total_waiting +=
+                metrics_temp->for_edf_rms_processes[i].waiting_time;
+            edf_completed_processes++;
+        }
+    }
+
+    strcpy(metrics[7].name, "EDF");
+    metrics[7].avg_wait_time =
+        edf_completed_processes > 0 ? (float)total_waiting / edf_counter : 0.0;
+    metrics[7].avg_turnaround_time =
+        -1.0; // EDF는 turnaround time을 계산하지 않음
+    metrics[7].cpu_utilization =
+        ((float)(metrics_temp->total_time - metrics_temp->idle_time) /
+         metrics_temp->total_time) *
+        100.0;
+    metrics[7].throughput =
+        ((float)edf_completed_processes / metrics_temp->total_time) * 100.0;
+    metrics[7].total_time = metrics_temp->total_time;
+    metrics[7].missed_deadlines = edf_missed_deadlines;
 
     printf("\n\n");
     print_thin_emphasized_header("CPU Scheduling Algorithm Comparison", 115);
@@ -379,29 +381,121 @@ void compare_algorithms(Process *processes, int count, Config *config) {
         "+----------------------+---------------+------------------+----------"
         "----+------------+------------------+\n");
 
-    // 리포트 생성
-    FILE *fp = fopen("result_example/scheduling_comparison_report.txt", "w");
-    if (fp) {
-        fprintf(fp,
-                "===== CPU Scheduling Simulator Comparison Report =====\n\n");
-        fprintf(fp, "* Simulation Configuration:\n");
-        fprintf(fp, " - Number of processes: %d\n", count);
-        fprintf(fp, " - Time quantum (RR): %d\n", config->time_quantum);
-        fprintf(fp, " - Priority range: 1-5 (1 being highest)\n");
-        fprintf(fp, " - CPU burst time range: 2-10\n");
-        fprintf(fp, " - I/O burst time range: 1-5 (when cpu burst is higher "
-                    "than 2)\n\n");
+    // 사용자로부터 리포트 파일명 입력받기
+    char report_filename[256];
+    printf("\n  Enter report filename (without extension): ");
+    scanf("%255s", report_filename);
 
-        fprintf(fp, "* Performance Metrics Summary:\n");
-        fprintf(fp,
-                " +----------------------+---------------+------------------"
-                "+--------------+------------+----------------+\n");
-        fprintf(fp,
-                " | Algorithm            | Avg Wait Time | Avg Turnaround   "
-                "| CPU Util (%%) | Throughput | Missed Deadlines |\n");
-        fprintf(fp,
-                " +----------------------+---------------+------------------"
-                "+--------------+------------+----------------+\n");
+    // 파일 경로 생성
+    char full_path[512];
+    snprintf(full_path, sizeof(full_path), "result_example/%s.txt",
+             report_filename);
+
+    // 상세한 리포트 생성
+    FILE *fp = fopen(full_path, "w");
+    if (fp) {
+        fprintf(fp, "=========================================================="
+                    "=============================\n");
+        fprintf(fp, "                    CPU SCHEDULING SIMULATOR - "
+                    "COMPREHENSIVE REPORT\n");
+        fprintf(fp, "=========================================================="
+                    "=============================\n\n");
+
+        // 시뮬레이션 설정 정보
+        fprintf(fp, "SIMULATION CONFIGURATION:\n");
+        fprintf(fp, "-------------------------\n");
+        fprintf(fp, "• Number of processes: %d\n", count);
+        fprintf(fp, "• Time quantum (Round Robin): %d time units\n",
+                config->time_quantum);
+        fprintf(fp, "• Simulation duration: Variable (until completion)\n");
+        fprintf(fp, "• Multi-I/O support: Enabled\n");
+        fprintf(fp, "• Priority range: 1-10 (1 = highest priority)\n");
+        fprintf(fp, "• CPU burst range: 1-10 time units\n");
+        fprintf(fp, "• I/O burst range: 1-5 time units\n\n");
+
+        // 프로세스 상세 정보
+        fprintf(fp, "PROCESS CONFIGURATION:\n");
+        fprintf(fp, "----------------------\n");
+        fprintf(fp, "+-----+--------+----------+----------+----------+---------"
+                    "-+----------+\n");
+        fprintf(fp, "| PID | Arrival| CPU Burst| Priority | Deadline | Period  "
+                    " | I/O Ops  |\n");
+        fprintf(fp, "+-----+--------+----------+----------+----------+---------"
+                    "-+----------+\n");
+
+        float total_theoretical_util = 0.0;
+        for (int i = 0; i < count; i++) {
+            // I/O 시간 계산
+            int total_io_time = 0;
+            int io_count = 0;
+            for (int j = 0; j < MAX_IO_OPERATIONS; j++) {
+                if (processes[i].io_operations[j].io_start != -1) {
+                    total_io_time += processes[i].io_operations[j].io_burst;
+                    io_count++;
+                }
+            }
+
+            int execution_time = processes[i].cpu_burst + total_io_time;
+            float individual_util = (float)execution_time / processes[i].period;
+            total_theoretical_util += individual_util;
+
+            fprintf(fp,
+                    "| P%-2d |   %-4d |    %-5d |    %-5d |    %-5d |    %-5d "
+                    "|    %-5d |\n",
+                    i, processes[i].arrival_time, processes[i].cpu_burst,
+                    processes[i].priority, processes[i].deadline,
+                    processes[i].period, io_count);
+        }
+        fprintf(fp, "+-----+--------+----------+----------+----------+---------"
+                    "-+----------+\n\n");
+
+        // 이론적 Utilization 분석
+        fprintf(fp, "UTILIZATION ANALYSIS:\n");
+        fprintf(fp, "---------------------\n");
+        fprintf(fp, "• Total System Utilization: %.3f (%.2f%%)\n",
+                total_theoretical_util, total_theoretical_util * 100);
+
+        float rms_bound = count * (pow(2.0, 1.0 / count) - 1);
+        fprintf(fp, "• RMS Theoretical Bound: %.3f (%.2f%%)\n", rms_bound,
+                rms_bound * 100);
+        fprintf(fp, "• EDF Theoretical Bound: 1.000 (100.00%%)\n\n");
+
+        fprintf(fp, "Schedulability Prediction:\n");
+        fprintf(fp, "• EDF: %s (Utilization %s 100%%)\n",
+                total_theoretical_util <= 1.0 ? "SCHEDULABLE"
+                                              : "NOT SCHEDULABLE",
+                total_theoretical_util <= 1.0 ? "<=" : ">");
+        fprintf(
+            fp, "• RMS: %s (Utilization %s %.2f%%)\n\n",
+            total_theoretical_util <= rms_bound ? "SCHEDULABLE" : "UNCERTAIN",
+            total_theoretical_util <= rms_bound ? "<=" : ">", rms_bound * 100);
+
+        // 성능 메트릭 상세 표
+        fprintf(fp, "PERFORMANCE METRICS COMPARISON:\n");
+        fprintf(fp, "================================\n");
+        fprintf(fp, "+----------------------+----------+----------+----------+-"
+                    "---------+----------+------------+\n");
+        fprintf(fp, "| Algorithm            | Avg Wait | Avg Turn | CPU Util | "
+                    "Thru-put | DL Miss  | Efficiency |\n");
+        fprintf(fp, "|                      | Time(ms) | Time(ms) |   (%%)    "
+                    "| (proc/s) | Count    | Score      |\n");
+        fprintf(fp, "+----------------------+----------+----------+----------+-"
+                    "---------+----------+------------+\n");
+
+        // 효율성 점수 계산을 위한 정규화
+        float max_wait = 0, max_turn = 0, max_cpu = 0, max_throughput = 0;
+        for (int i = 0; i < 9; i++) {
+            if (i < 7) { // 일반 알고리즘만
+                if (metrics[i].avg_wait_time > max_wait)
+                    max_wait = metrics[i].avg_wait_time;
+                if (metrics[i].avg_turnaround_time > max_turn)
+                    max_turn = metrics[i].avg_turnaround_time;
+            }
+            if (metrics[i].cpu_utilization > max_cpu)
+                max_cpu = metrics[i].cpu_utilization;
+            if (metrics[i].throughput > max_throughput)
+                max_throughput = metrics[i].throughput;
+        }
 
         for (int i = 0; i < 9; i++) {
             char short_name[20];
@@ -420,117 +514,219 @@ void compare_algorithms(Process *processes, int count, Config *config) {
                 strcpy(short_name, metrics[i].name);
             }
 
+            // 효율성 점수 계산 (낮은 대기시간, 높은 CPU 사용률이 좋음)
+            float efficiency_score = 0.0;
+            if (i < 7) { // 일반 알고리즘
+                efficiency_score =
+                    (1.0 - metrics[i].avg_wait_time / max_wait) * 0.4 +
+                    (1.0 - metrics[i].avg_turnaround_time / max_turn) * 0.3 +
+                    (metrics[i].cpu_utilization / max_cpu) * 0.3;
+            } else { // 실시간 알고리즘
+                efficiency_score =
+                    (metrics[i].cpu_utilization / max_cpu) * 0.5 +
+                    (metrics[i].missed_deadlines == 0 ? 1.0 : 0.0) * 0.5;
+            }
+
             if (i == 7 || i == 8) { // EDF, RMS
                 fprintf(
                     fp,
-                    " | %-20s | %13.2f | %16s | %11.2f%% | %10.4f | %14d |\n",
-                    short_name, metrics[i].avg_wait_time, "-",
-                    metrics[i].cpu_utilization, metrics[i].throughput,
-                    metrics[i].missed_deadlines);
+                    "| %-20s | %8s | %8s | %8.2f | %8.4f | %8d | %10.3f |\n",
+                    short_name, "N/A", "N/A", metrics[i].cpu_utilization,
+                    metrics[i].throughput, metrics[i].missed_deadlines,
+                    efficiency_score);
             } else {
-                fprintf(
-                    fp,
-                    " | %-20s | %13.2f | %16.2f | %11.2f%% | %10.4f | %14s |\n",
-                    short_name, metrics[i].avg_wait_time,
-                    metrics[i].avg_turnaround_time, metrics[i].cpu_utilization,
-                    metrics[i].throughput, "N/A");
+                fprintf(fp,
+                        "| %-20s | %8.2f | %8.2f | %8.2f | %8.4f | %8s | "
+                        "%10.3f |\n",
+                        short_name, metrics[i].avg_wait_time,
+                        metrics[i].avg_turnaround_time,
+                        metrics[i].cpu_utilization, metrics[i].throughput,
+                        "N/A", efficiency_score);
             }
         }
+        fprintf(fp, "+----------------------+----------+----------+----------+-"
+                    "---------+----------+------------+\n\n");
 
-        fprintf(fp,
-                " +----------------------+---------------+------------------"
-                "+--------------+------------+----------------+\n\n");
+        // 상세 분석
+        fprintf(fp, "DETAILED ANALYSIS:\n");
+        fprintf(fp, "==================\n\n");
 
-        fprintf(fp, "* Algorithm Analysis:\n");
+        // 1. 일반 스케줄링 알고리즘 분석
+        fprintf(fp, "1. GENERAL SCHEDULING ALGORITHMS:\n");
+        fprintf(fp, "   -------------------------------\n");
 
-        // 평균 대기 시간이 가장 짧은 알고리즘 찾기 (일반 알고리즘만)
-        int min_wait_idx = 0;
-        for (int i = 1; i < 7; i++) { // EDF, RMS 제외
-            if (metrics[i].avg_wait_time <
-                metrics[min_wait_idx].avg_wait_time) {
+        int min_wait_idx = 0, min_turn_idx = 0, max_cpu_gen_idx = 0;
+        for (int i = 1; i < 7; i++) {
+            if (metrics[i].avg_wait_time < metrics[min_wait_idx].avg_wait_time)
                 min_wait_idx = i;
-            }
-        }
-        fprintf(fp, " - Minimum Average Waiting Time (General): %s (%.2f)\n",
-                metrics[min_wait_idx].name,
-                metrics[min_wait_idx].avg_wait_time);
-
-        // 평균 반환 시간이 가장 짧은 알고리즘 찾기 (일반 알고리즘만)
-        int min_turnaround_idx = 0;
-        for (int i = 1; i < 7; i++) { // EDF, RMS 제외
             if (metrics[i].avg_turnaround_time <
-                metrics[min_turnaround_idx].avg_turnaround_time) {
-                min_turnaround_idx = i;
-            }
-        }
-        fprintf(fp, " - Minimum Average Turnaround Time (General): %s (%.2f)\n",
-                metrics[min_turnaround_idx].name,
-                metrics[min_turnaround_idx].avg_turnaround_time);
-
-        // CPU 사용률이 가장 높은 알고리즘 찾기
-        int max_cpu_util_idx = 0;
-        for (int i = 1; i < 9; i++) {
+                metrics[min_turn_idx].avg_turnaround_time)
+                min_turn_idx = i;
             if (metrics[i].cpu_utilization >
-                metrics[max_cpu_util_idx].cpu_utilization) {
-                max_cpu_util_idx = i;
-            }
+                metrics[max_cpu_gen_idx].cpu_utilization)
+                max_cpu_gen_idx = i;
         }
-        fprintf(fp, " - Maximum CPU Utilization: %s (%.2f%%)\n",
-                metrics[max_cpu_util_idx].name,
-                metrics[max_cpu_util_idx].cpu_utilization);
 
-        // 처리량이 가장 높은 알고리즘 찾기
-        int max_throughput_idx = 0;
-        for (int i = 1; i < 9; i++) {
-            if (metrics[i].throughput >
-                metrics[max_throughput_idx].throughput) {
-                max_throughput_idx = i;
-            }
-        }
-        fprintf(fp, " - Maximum Throughput: %s (%.4f)\n",
-                metrics[max_throughput_idx].name,
-                metrics[max_throughput_idx].throughput);
+        fprintf(fp, "   • Best for Interactive Systems: %s\n",
+                metrics[min_wait_idx].name);
+        fprintf(fp, "     - Lowest average waiting time: %.2f ms\n",
+                metrics[min_wait_idx].avg_wait_time);
+        fprintf(fp, "     - CPU utilization: %.2f%%\n\n",
+                metrics[min_wait_idx].cpu_utilization);
 
-        // 실시간 스케줄링 성능 분석
-        fprintf(fp, "\n* Real-Time Scheduling Analysis:\n");
-        fprintf(fp, " - EDF Deadline Misses: %d\n",
+        fprintf(fp, "   • Best for Batch Processing: %s\n",
+                metrics[min_turn_idx].name);
+        fprintf(fp, "     - Lowest average turnaround time: %.2f ms\n",
+                metrics[min_turn_idx].avg_turnaround_time);
+        fprintf(fp, "     - Throughput: %.4f processes/second\n\n",
+                metrics[min_turn_idx].throughput);
+
+        fprintf(fp, "   • Most Resource Efficient: %s\n",
+                metrics[max_cpu_gen_idx].name);
+        fprintf(fp, "     - Highest CPU utilization: %.2f%%\n",
+                metrics[max_cpu_gen_idx].cpu_utilization);
+        fprintf(fp, "     - System idle time minimized\n\n");
+
+        // 2. 실시간 스케줄링 분석
+        fprintf(fp, "2. REAL-TIME SCHEDULING ALGORITHMS:\n");
+        fprintf(fp, "   ---------------------------------\n");
+        fprintf(fp, "   • EDF (Earliest Deadline First):\n");
+        fprintf(fp, "     - Deadline misses: %d\n",
                 metrics[7].missed_deadlines);
-        fprintf(fp, " - RMS Deadline Misses: %d\n",
-                metrics[8].missed_deadlines);
+        fprintf(fp, "     - CPU utilization: %.2f%%\n",
+                metrics[7].cpu_utilization);
+        fprintf(
+            fp,
+            "     - Theoretical optimality: Optimal up to 100%% utilization\n");
+        fprintf(fp,
+                "     - Dynamic priority assignment based on deadlines\n\n");
 
+        fprintf(fp, "   • RMS (Rate Monotonic Scheduling):\n");
+        fprintf(fp, "     - Deadline misses: %d\n",
+                metrics[8].missed_deadlines);
+        fprintf(fp, "     - CPU utilization: %.2f%%\n",
+                metrics[8].cpu_utilization);
+        fprintf(fp, "     - Theoretical bound: %.2f%% for %d processes\n",
+                rms_bound * 100, count);
+        fprintf(fp, "     - Fixed priority assignment based on periods\n\n");
+
+        // 3. 실시간 성능 비교
+        fprintf(fp, "3. REAL-TIME PERFORMANCE COMPARISON:\n");
+        fprintf(fp, "   ----------------------------------\n");
         if (metrics[7].missed_deadlines == 0 &&
             metrics[8].missed_deadlines == 0) {
-            fprintf(fp, " - Both EDF and RMS successfully met all deadlines\n");
+            fprintf(fp,
+                    "   • Both algorithms successfully met all deadlines\n");
+            fprintf(fp,
+                    "   • System utilization (%.2f%%) is within both "
+                    "algorithms' capabilities\n",
+                    total_theoretical_util * 100);
         } else if (metrics[7].missed_deadlines < metrics[8].missed_deadlines) {
-            fprintf(fp, " - EDF performed better with fewer deadline misses\n");
+            fprintf(fp,
+                    "   • EDF outperformed RMS with fewer deadline misses\n");
+            fprintf(
+                fp,
+                "   • System utilization (%.2f%%) exceeds RMS bound (%.2f%%)\n",
+                total_theoretical_util * 100, rms_bound * 100);
+            fprintf(fp, "   • EDF's dynamic priority proved more effective\n");
         } else if (metrics[8].missed_deadlines < metrics[7].missed_deadlines) {
-            fprintf(fp, " - RMS performed better with fewer deadline misses\n");
-        } else {
-            fprintf(fp, " - EDF and RMS had equal deadline miss performance\n");
+            fprintf(fp, "   • RMS outperformed EDF (unexpected result)\n");
+            fprintf(fp, "   • This may indicate specific task timing patterns "
+                        "favoring RMS\n");
+        } else if (metrics[7].missed_deadlines > 0) {
+            fprintf(fp,
+                    "   • Both algorithms had equal deadline miss counts\n");
+            fprintf(fp, "   • System utilization exceeds schedulable limits\n");
+        }
+        fprintf(fp, "\n");
+
+        // 4. I/O 영향 분석
+        fprintf(fp, "4. MULTI-I/O IMPACT ANALYSIS:\n");
+        fprintf(fp, "   ---------------------------\n");
+        int total_io_ops = 0;
+        int total_io_time = 0;
+        for (int i = 0; i < count; i++) {
+            for (int j = 0; j < MAX_IO_OPERATIONS; j++) {
+                if (processes[i].io_operations[j].io_start != -1) {
+                    total_io_ops++;
+                    total_io_time += processes[i].io_operations[j].io_burst;
+                }
+            }
         }
 
-        fprintf(fp, "\n* Conclusion:\n");
+        fprintf(fp, "   • Total I/O operations: %d\n", total_io_ops);
+        fprintf(fp, "   • Total I/O time: %d time units\n", total_io_time);
+        fprintf(fp, "   • Average I/O per process: %.2f operations\n",
+                (float)total_io_ops / count);
+        fprintf(fp, "   • I/O impact on scheduling: %s\n",
+                total_io_ops > 0 ? "Significant - increases context switching"
+                                 : "Minimal");
+        fprintf(fp, "\n");
+
+        // 5. 권장사항
+        fprintf(fp, "5. RECOMMENDATIONS:\n");
+        fprintf(fp, "   ----------------\n");
+        fprintf(fp, "   Based on the analysis results:\n\n");
+
+        fprintf(fp, "   • For General Purpose Systems:\n");
+        fprintf(fp, "     - Use %s for lowest response time\n",
+                metrics[min_wait_idx].name);
+        fprintf(fp, "     - Use %s for highest throughput\n",
+                metrics[min_turn_idx].name);
+        fprintf(fp, "\n");
+
+        fprintf(fp, "   • For Real-Time Systems:\n");
+        if (total_theoretical_util <= rms_bound) {
+            fprintf(fp, "     - Both EDF and RMS are suitable\n");
+            fprintf(fp, "     - RMS preferred for predictable behavior\n");
+            fprintf(fp, "     - EDF preferred for maximum utilization\n");
+        } else if (total_theoretical_util <= 1.0) {
+            fprintf(fp, "     - EDF is strongly recommended\n");
+            fprintf(fp, "     - RMS may experience deadline misses\n");
+            fprintf(fp, "     - Consider reducing system load for RMS\n");
+        } else {
+            fprintf(fp,
+                    "     - System is overloaded for real-time guarantees\n");
+            fprintf(fp, "     - Reduce task load or increase periods\n");
+            fprintf(fp, "     - Consider task partitioning\n");
+        }
+        fprintf(fp, "\n");
+
+        // 6. 시스템 특성
+        fprintf(fp, "6. SYSTEM CHARACTERISTICS:\n");
+        fprintf(fp, "   -----------------------\n");
+        fprintf(fp, "   • Workload type: %s\n",
+                total_io_ops > count ? "I/O Intensive" : "CPU Intensive");
+        fprintf(fp, "   • Real-time feasibility: %s\n",
+                total_theoretical_util <= 1.0 ? "Feasible with EDF"
+                                              : "Overloaded");
+        fprintf(fp, "   • Priority inversion risk: %s\n",
+                total_io_ops > 0 ? "Present due to I/O operations" : "Low");
+        fprintf(fp, "   • Scalability: %s\n",
+                count <= 4 ? "Good"
+                           : "Consider partitioning for large task sets");
+
+        fprintf(fp, "\n");
+        fprintf(fp, "=========================================================="
+                    "=====================\n");
+        fprintf(fp, "Report generated by CPU Scheduling Simulator v1.0\n");
         fprintf(fp,
-                " - For interactive systems: %s is ideal (lowest wait time: "
-                "%.2f ms)\n",
-                metrics[min_wait_idx].name,
-                metrics[min_wait_idx].avg_wait_time);
-        fprintf(fp,
-                " - For batch processing: %s performs best (lowest turnaround: "
-                "%.2f ms)\n",
-                metrics[min_turnaround_idx].name,
-                metrics[min_turnaround_idx].avg_turnaround_time);
-        fprintf(fp,
-                " - For maximum resource utilization: %s (%.2f%% CPU "
-                "utilization)\n",
-                metrics[max_cpu_util_idx].name,
-                metrics[max_cpu_util_idx].cpu_utilization);
+                "Analysis includes %d algorithms with comprehensive metrics\n",
+                9);
+        fprintf(fp, "Copyright © 2025 Seongmin Lee\n");
+        fprintf(fp, "Licensed under the MIT License\n");
+        fprintf(fp, "=========================================================="
+                    "=====================\n");
 
         fclose(fp);
-        printf("Comparison report generated and saved as "
-               "'scheduling_comparison_report.txt'\n");
+        printf("\nComprehensive scheduling analysis report generated!\n");
+        printf("Saved as: 'result_example/%s.txt'\n", report_filename);
+        printf("Report includes utilization analysis, performance metrics, "
+               "and recommendations.\n\n");
     } else {
-        printf("\nError: Could not create comparison report file.\n");
+        printf("\nError: Could not create report file '%s.txt'\n",
+               report_filename);
+        printf("Please check if the 'result_example' directory exists.\n");
     }
 
     for (int i = 0; i < count; i++) {
@@ -724,7 +920,7 @@ void display_io_statistics(Process *processes, int count) {
     }
 
     printf("┌─────────────────────────────────────────────────────────────┐\n");
-    printf("│ Processes with I/O        : %3d out of %3d                  │\n",
+    printf("│ Processes with I/O        : %3d out of %-3d                  │\n",
            processes_with_io, count);
     printf("│ Total I/O Operations      : %3d operations                  │\n",
            total_io_operations);
@@ -863,8 +1059,6 @@ void display_gantt_chart(GanttChart *gantt, const char *algorithm_name) {
     free(consolidated);
 }
 
-// evaluation.c 파일에 추가할 함수들
-
 void save_processes_to_file(Process *processes, int count) {
     char filename[256];
     char filepath[300];
@@ -896,7 +1090,7 @@ void save_processes_to_file(Process *processes, int count) {
         // 각 프로세스 정보 저장
         for (int i = 0; i < count; i++) {
             // 기본 프로세스 정보: PID 도착시간 CPU버스트 우선순위 데드라인 주기
-            // IO개수
+            // IO 개수
             int io_count = get_io_count(&processes[i]);
             fprintf(file, "%d %d %d %d %d %d %d\n", processes[i].pid,
                     processes[i].arrival_time, processes[i].cpu_burst,
@@ -923,86 +1117,62 @@ void save_processes_to_file(Process *processes, int count) {
     }
 }
 
-// 저장된 파일 목록을 보여주는 함수 (선택사항)
-void list_saved_process_files() {
-    DIR *dir;
-    struct dirent *entry;
-    int file_count = 0;
+void print_utilization_analysis(Process *original_processes, int count,
+                                const char *algorithm_name) {
+    printf("\n** Utilization Analysis for %s **\n", algorithm_name);
+    printf("+------+-------------+----------+-------------+---------------+\n");
+    printf(
+        "| PID  | CPU + I/O   | Period   | Individual  | Utilization %% |\n");
+    printf("+------+-------------+----------+-------------+---------------+\n");
 
-    dir = opendir("test_files");
-    if (dir == NULL) {
-        printf("Warning: 'test_files' directory not found.\n");
-        return;
-    }
+    float total_utilization = 0.0;
 
-    printf("\n** Available Saved Process Files **\n");
-    printf("-----------------------------------\n");
-
-    while ((entry = readdir(dir)) != NULL) {
-        if (strncmp(entry->d_name, "process-", 8) == 0) {
-            char *ext = strstr(entry->d_name, ".txt");
-            if (ext && strcmp(ext, ".txt") == 0) {
-                // "process-" 접두사 제거하고 ".txt" 확장자 제거
-                char name[256];
-                strncpy(name, entry->d_name + 8, strlen(entry->d_name) - 12);
-                name[strlen(entry->d_name) - 12] = '\0';
-
-                printf("  - %s\n", name);
-                file_count++;
+    for (int i = 0; i < count; i++) {
+        // I/O 시간 계산
+        int total_io_time = 0;
+        for (int j = 0; j < MAX_IO_OPERATIONS; j++) {
+            if (original_processes[i].io_operations[j].io_start != -1) {
+                total_io_time +=
+                    original_processes[i].io_operations[j].io_burst;
             }
         }
+
+        int execution_time = original_processes[i].cpu_burst + total_io_time;
+        float individual_util =
+            (float)execution_time / original_processes[i].period;
+        total_utilization += individual_util;
+
+        printf("| P%-3d | %-11d | %-8d | %-11.3f | %-13.2f |\n", i,
+               execution_time, original_processes[i].period, individual_util,
+               individual_util * 100);
     }
 
-    if (file_count == 0) {
-        printf("  No saved process files found.\n");
-    } else {
-        printf("-----------------------------------\n");
-        printf("Total: %d saved configurations\n", file_count);
+    printf("+------+-------------+----------+-------------+---------------+\n");
+    printf("| Total System Utilization: %.3f (%.2f%%)                    |\n",
+           total_utilization, total_utilization * 100);
+
+    float rms_bound = count * (pow(2.0, 1.0 / count) - 1);
+
+    if (strcmp(algorithm_name, "EDF") == 0) {
+        printf(
+            "| %s Theoretical Bound: %.3f (%.2f%%)                       |\n",
+            algorithm_name, 1.0, 100.0);
+    } else if (strcmp(algorithm_name, "RMS") == 0) {
+        printf(
+            "| %s Theoretical Bound: %.3f (%.2f%%)                       |\n",
+            algorithm_name, rms_bound, rms_bound * 100);
     }
 
-    closedir(dir);
-}
+    printf("+------+-------------+----------+-------------+---------------+\n");
 
-// 파일 저장 예시를 보여주는 함수
-void show_file_format_example() {
-    printf("\n** File Format Example **\n");
-    printf("File: test_files/process-example.txt\n");
-    printf("-----------------------------------\n");
-    printf("4                    # Number of processes\n");
-    printf("0 2 9 1 14 12 1      # P0: PID arrival CPU priority deadline "
-           "period io_count\n");
-    printf("3 4                  # I/O1: start_time burst_time\n");
-    printf("1 5 9 9 20 15 2      # P1: 2 I/O operations\n");
-    printf("3 5                  # I/O1: start_time burst_time\n");
-    printf("6 2                  # I/O2: start_time burst_time\n");
-    printf("2 8 6 10 20 12 0     # P2: No I/O operations\n");
-    printf("3 3 4 7 12 9 1       # P3: 1 I/O operation\n");
-    printf("2 3                  # I/O1: start_time burst_time\n");
-    printf("-----------------------------------\n");
-}
-
-// main.c나 적절한 위치에서 호출할 수 있는 메뉴 함수
-void show_file_management_menu() {
-    char choice;
-
-    printf("\n** File Management Options **\n");
-    printf("1. List saved process files\n");
-    printf("2. Show file format example\n");
-    printf("3. Continue\n");
-    printf("Select option (1-3): ");
-    scanf(" %c", &choice);
-
-    switch (choice) {
-    case '1':
-        list_saved_process_files();
-        break;
-    case '2':
-        show_file_format_example();
-        break;
-    case '3':
-    default:
-        break;
-    }
+    // 스케줄링 가능성 예측
+    printf("\n** Schedulability Prediction **\n");
+    printf("- EDF: %s (Utilization <= 100%%)\n",
+           total_utilization <= 1.0 ? "SCHEDULABLE" : "NOT SCHEDULABLE");
+    printf("- RMS: %s (Utilization <= %.2f%%)\n",
+           total_utilization <= rms_bound ? "SCHEDULABLE" : "UNCERTAIN",
+           rms_bound * 100);
+    printf("\n");
 }
 
 void display_scheduling_results(Process *processes, int count,
