@@ -1,88 +1,230 @@
-# CPU 스케줄링 시뮬레이터
+# CPU Scheduling Simulator
 
-다양한 CPU 스케줄링 알고리즘을 시뮬레이션하고 성능을 비교하는 텀프로젝트
+A comprehensive CPU scheduling simulator that implements and compares various scheduling algorithms with multi-I/O support and real-time system analysis.
 
-## 디렉터리 구조
+## Features
 
-- `src/`: 소스 코드 파일들
-  - `process.h/c`: 프로세스 구조체 및 관련 함수
-  - `queue.h/c`: 스케줄링을 위한 큐 구현
-  - `scheduler.h/c`: 다양한 스케줄링 알고리즘 구현
-  - `evaluation.h/c`: 성능 평가 및 결과 출력 기능
-  - `main.c`: 프로그램 진입점
-- `test/`: 결과 파일이 저장되는 디렉터리
-- `include/`: 헤더 파일들
+- **9 scheduling algorithms** implementation and performance comparison
+- **Multi-I/O operations** support (up to 3 I/O operations per process)
+- **Real-time system scheduling** (EDF, RMS) with theoretical analysis
+- **Gantt chart visualization** and detailed performance metrics
+- **Process configuration save/load** functionality
+- **Comprehensive analysis reports** with recommendations
 
-## 구현된 스케줄링 알고리즘
+## Project Structure
 
-1. **FCFS (First-Come, First-Served)**: 도착 순서대로 프로세스 실행
-2. **SJF (Shortest Job First)**
-   - 비선점형(Non-preemptive): 가장 짧은 실행 시간을 가진 프로세스 먼저 실행
-   - 선점형(Preemptive): 더 짧은 실행 시간을 가진 프로세스가 도착하면 선점
-3. **Priority Scheduling**
-   - 비선점형(Non-preemptive): 우선순위가 높은 프로세스 먼저 실행
-   - 선점형(Preemptive): 더 높은 우선순위를 가진 프로세스가 도착하면 선점
-4. **Round Robin**: 시간 할당량을 기준으로 프로세스를 순환 실행
-5. **Priority with Aging**: 우선순위 스케줄링에 노화 기법 적용
-   - 대기 큐에서 일정 시간 이상 대기한 프로세스의 우선순위를 점진적으로 높임
-   - 기아 상태 방지 기능 구현
-6. **EDF (Earliest Deadline First)**: 데드라인이 가장 빠른 프로세스를 우선 실행
-   - 실시간 시스템에 적합한 알고리즘
-   - 데드라인 미스 여부 추적 및 보고
-7. **RMS (Rate Monotonic Scheduling)**: 주기가 짧은 프로세스에 높은 우선순위 부여
-   - 주기적 작업 처리에 적합한 정적 우선순위 알고리즘
-   - 데드라인(주기) 미스 여부 추적 및 보고
+```
+CPU_Scheduling_Simulator/
+├── src/                    # Source code files
+│   ├── main.c             # Program entry point
+│   ├── scheduler.c        # Scheduling algorithms implementation
+│   ├── process.c          # Process management and generation
+│   ├── evaluation.c       # Performance evaluation and output
+│   ├── queue.c            # Queue implementation for scheduling
+│   ├── config.c           # System configuration management
+│   └── sort_utils.c       # Sorting utilities
+├── include/               # Header files
+│   ├── scheduler.h
+│   ├── process.h
+│   ├── evaluation.h
+│   ├── queue.h
+│   ├── config.h
+│   └── sort_utils.h
+├── test_files/            # Process configuration files
+│   ├── process-1.txt
+│   ├── process-2.txt
+│   └── ...
+├── result_example/        # Analysis reports storage
+├── obj/                  # Compiled object files
+├── Makefile              # Build configuration
+└── README.md
+```
 
-## 컴파일 및 실행 방법
+## Implemented Scheduling Algorithms
 
-### 컴파일 방법
+### General Scheduling Algorithms
+- **FCFS (First-Come, First-Served)**: Executes processes in arrival order
+- **SJF (Shortest Job First)**
+  - Non-preemptive: Shortest job executes first
+  - Preemptive: Preempts when shorter job arrives
+- **Priority Scheduling**
+  - Non-preemptive: Executes based on priority
+  - Preemptive: Preempts when higher priority arrives
+- **Round Robin**: Time quantum-based circular execution
+- **Priority with Aging**: Priority scheduling with starvation prevention
 
+### Real-time Scheduling Algorithms
+- **EDF (Earliest Deadline First)**: Dynamic priority based on deadlines
+- **RMS (Rate Monotonic Scheduling)**: Static priority based on periods
+
+## Build and Execution
+
+### Compilation
 ```bash
 make
 ```
 
-### 실행 방법
-
+### Execution
 ```bash
 ./cpu_simulator
 ```
 
-### 정리하기
-
+### Clean
 ```bash
 make clean
 ```
 
-## 프로그램 사용법
+## Usage
 
-1. 프로그램 실행 시 사용할 스케줄링 알고리즘 선택 가능
-2. 프로세스 개수 입력 후 랜덤 생성 모드 선택 가능
-   - 랜덤 모드('y'): 도착 시간, CPU 버스트 시간, 우선순위, 데드라인, 주기 등 자동 생성
-   - 수동 모드('n'): 사용자가 프로세스 속성 직접 입력 가능
+### 1. Process Generation Mode Selection
+```
+random create mode? ('y': yes, 'n': no, 'f': Use file):
+```
+- **'y'**: Generate random processes
+- **'n'**: Manual process input
+- **'f'**: Load processes from file
 
-## 출력 결과
+### 2. File Mode Usage
+- Available files in `test_files/` directory are displayed
+- Select the desired file number to load processes
 
-1. **간트 차트**: 각 프로세스의 실행 시간을 시각화
-2. **성능 지표**:
-   - 평균 대기 시간(Average Waiting Time)
-   - 평균 반환 시간(Average Turnaround Time)
-   - CPU 이용률(CPU Utilization)
-   - 처리량(Throughput)
-   - 데드라인 미스 횟수(Deadline Misses) - EDF, RMS에서만 해당
-3. **프로세스 상세 정보**: 각 프로세스의 세부 정보를 테이블 형태로 출력
-   - 프로세스 ID, 버스트 시간, 도착 시간, 우선순위
-   - I/O 관련 정보 (시작 시점, 버스트 시간)
-   - 완료 시간, 대기 시간, 반환 시간
-   - 데드라인, 주기, 데드라인 미스 여부
-4. **특수 로그**:
-   - Aging 정보: 노화로 인한 우선순위 변경 시점 및 변경 내역
-   - 데드라인 미스 로그: 데드라인 위반 시점 및 상세 정보
-5. **비교 보고서**: 모든 알고리즘의 성능을 비교한 보고서가 `test/scheduling_comparison_report.txt` 파일로 저장됨
-
-## 주의사항
-
-- test 디렉터리가 없을 경우 자동으로 생성되지 않으므로, 프로그램 실행 전 반드시 test 디렉터리 유무 확인 필수
-```bash
-mkdir -p test
+### 3. Scheduling Algorithm Selection
+```
+===== CPU Scheduling Algorithms =====
+1. Run FCFS
+2. Run SJF (Non-preemptive)
+3. Run SJF (Preemptive)
+4. Run Priority (Non-preemptive)
+5. Run Priority (Preemptive)
+6. Run Round Robin
+7. Run Priority with Aging (Preemptive)
+8. Run RMS (Rate Monotonic Scheduling)
+9. Run EDF (Earliest Deadline First)
+10. Compare all algorithms
+11. Exit
 ```
 
+## Output Results
+
+### 1. Gantt Chart
+Visual representation of process execution timeline
+
+### 2. Process Information Table
+- Basic process information (PID, burst time, arrival time, priority, etc.)
+- Multi-I/O operation details
+- Completion time, waiting time, turnaround time
+
+### 3. Performance Metrics
+- Average Waiting Time
+- Average Turnaround Time
+- CPU Utilization
+- Throughput
+- I/O statistics and analysis
+
+### 4. Real-time System Analysis (EDF, RMS)
+- System utilization analysis
+- Schedulability prediction
+- Deadline miss logging
+- Theoretical bound comparison
+
+### 5. Comprehensive Analysis Report
+- Performance comparison between algorithms
+- Detailed analysis and recommendations
+- System characteristics analysis
+- Efficiency score calculation
+
+## File Format
+
+### Process Configuration File (test_files/)
+```
+4                           # Number of processes
+0 4 10 6 28 50 1            # PID ArrivalTime CPUBurst Priority Deadline Period IOCount
+6 3                         # IO StartTime IOBurst
+1 8 8 4 35 60 2             # Process 1 information
+1 5                         # IO 1
+5 2                         # IO 2
+...
+```
+
+## Key Features
+
+### Multi-I/O Support
+- Each process can perform up to 3 I/O operations
+- Processes enter waiting state during I/O operations
+- Return to ready queue after I/O completion
+
+### Real-time Scheduling Analysis
+- **EDF**: Theoretically schedulable up to 100% CPU utilization
+- **RMS**: Liu & Layland theoretical bound (≈75.7% for 4 processes)
+- Deadline miss tracking and logging
+
+### Priority Aging Mechanism
+- Priority increases when waiting time exceeds threshold (3)
+- Prevents starvation
+- Tracks priority change history
+
+### Performance Analysis Tools
+- Simultaneous comparison of 9 algorithms
+- Efficiency score calculation
+- System characteristics analysis (CPU vs I/O intensive)
+- Automatic comprehensive report generation
+
+## System Requirements
+
+- GCC compiler
+- Make build tool
+- Linux/Unix environment (for directory structure support)
+- Math library (libm)
+
+## Development and Testing Environment
+
+This project was developed and tested on:
+- **macOS Sequoia (Version 15.5)**
+- **Ubuntu 24.04.2 LTS** running on UTM virtual machine
+
+The simulator is designed to work seamlessly in both macOS and Linux environments, with primary testing conducted on Ubuntu LTS for compatibility assurance.
+
+## Directory Setup
+
+Ensure the following directories exist before running the program:
+
+```bash
+mkdir -p test_files result_example
+```
+
+## Usage Examples
+
+### 1. File Mode Execution
+```bash
+./cpu_simulator
+# Select 'f' → Choose file → Run algorithm
+```
+
+### 2. All Algorithms Comparison
+```bash
+# Select option 10 → Enter max_time → Enter report filename(saved as result_example/filename.txt)
+```
+
+### 3. Save Process Configuration
+```bash
+# Run random mode ('y') → Test algorithms → Save with 'y'(saved as test_files/process-filename.txt)
+```
+
+## Performance Analysis Interpretation
+
+- **Lower waiting time**: Better for interactive systems
+- **Lower turnaround time**: Better for batch processing
+- **Higher CPU utilization**: Better resource efficiency
+- **Fewer deadline misses**: Better for real-time systems
+
+## Contributing
+
+1. Fork the Project
+2. Create your Feature Branch (`git checkout -b feature/AmazingFeature`)
+3. Commit your Changes (`git commit -m 'Add some AmazingFeature'`)
+4. Push to the Branch (`git push origin feature/AmazingFeature`)
+5. Open a Pull Request
+
+## License
+
+This project is distributed under the MIT License. See `LICENSE` file for more information.
