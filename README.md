@@ -227,4 +227,4 @@ mkdir -p test_files result_example
 
 ## License
 
-This project is distributed under the MIT License. See `LICENSE` file for more information.
+This project is distributed under the MIT License. See [`LICENSE`](LICENSE) file for more information.
