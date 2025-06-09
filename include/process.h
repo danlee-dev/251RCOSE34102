@@ -44,7 +44,6 @@ int rand_except(int min, int max, int exclude);
 void init_process_io(Process *p);
 void add_io_to_process(Process *p, int io_start, int io_burst);
 int get_io_count(Process *p);
-void sort_io_operations(Process *p);
 int is_time_used(int *used_times, int count, int time);
 
 // I/O 처리 관련 함수들

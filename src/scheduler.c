@@ -1,22 +1,13 @@
 #include "scheduler.h"
 #include "evaluation.h"
 #include "queue.h"
-#include "sort_utils.h"
+#include "utils.h"
 #include <math.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
 #define GanttEntrySize 1000
 
-// Trouble Shooting
-// 1. 대기 큐 대기시간 증가 오류 -> 정확하게 ready queue에 있는 경우만
-// 추적해야하는데, io burst도 대기시간에 포함하는 문제
-// 2. edf, rms에서 deadline의 갱신은 프로세스가 완료 되어야만 갱신되는데, 문제는
-// 만약 프로세스가 deadline까지 완료되지 못하면, 주기성에 따라서 들어온 같은
-// 프로세스는 deadline이 갱신이 안되는 문제가 발생 -> 이 문제는 프로세스가
-// 완료되지 않아도 갱신되도록 해야함
-
-// 헬퍼 함수들
 
 Metrics *run_fcfs(Process *processes, int count) {
     printf("\n");
@@ -112,7 +103,7 @@ Metrics *run_fcfs(Process *processes, int count) {
         }
 
         // 디버깅용 ready queue 상태 출력 (간소화)
-        // if (!is_empty(&ready_q)) { // 5시간마다 출력
+        // if (!is_empty(&ready_q)) {
         //     printf("Time %d Ready Queue: ", time);
         //     for (int i = ready_q.front, cnt = 0; cnt < ready_q.count;
         //          cnt++, i = (i + 1) % MAX_QUEUE_SIZE) {
@@ -176,61 +167,14 @@ Metrics *run_sjf_np(Process *processes, int count) {
         for (int i = 0; i < count; i++) {
             // 도착 프로세스 처리
             if (processes[i].arrival_time == time) {
-
-                if (is_empty(&ready_q)) {
-                    enqueue(&ready_q, i);
-                } else {
-                    int inserted = 0;
-                    while (!is_empty(&ready_q)) {
-                        int current = peek(&ready_q);
-                        if (!inserted &&
-                            processes[i].remaining_time <
-                                processes[current].remaining_time) {
-                            enqueue(&temp_q, i);
-                            inserted = 1;
-                        }
-                        enqueue(&temp_q, dequeue(&ready_q));
-                    }
-
-                    if (!inserted) {
-                        enqueue(&temp_q, i);
-                    }
-
-                    while (!is_empty(&temp_q)) {
-                        enqueue(&ready_q, dequeue(&temp_q));
-                    }
-                }
+                enqueue(&ready_q, i);
             }
 
             // I/O 완료 처리
             if (waiting_q[i] > 0) {
                 waiting_q[i]--;
                 if (waiting_q[i] == 0) {
-
-                    if (is_empty(&ready_q)) {
-                        enqueue(&ready_q, i);
-                    } else {
-                        int inserted = 0;
-                        while (!is_empty(&ready_q)) {
-                            int current = peek(&ready_q);
-                            if (!inserted &&
-                                processes[i].cpu_burst - processes[i].progress <
-                                    processes[current].cpu_burst -
-                                        processes[current].progress) {
-                                enqueue(&temp_q, i);
-                                inserted = 1;
-                            }
-                            enqueue(&temp_q, dequeue(&ready_q));
-                        }
-
-                        if (!inserted) {
-                            enqueue(&temp_q, i);
-                        }
-
-                        while (!is_empty(&temp_q)) {
-                            enqueue(&ready_q, dequeue(&temp_q));
-                        }
-                    }
+                    enqueue(&ready_q, i);
                     waiting_q[i] = -1;
                 }
             }
@@ -290,7 +234,7 @@ Metrics *run_sjf_np(Process *processes, int count) {
         }
 
         // 디버깅용 ready queue 상태 출력 (간소화)
-        // if (!is_empty(&ready_q)) { // 5시간마다 출력
+        // if (!is_empty(&ready_q)) {
         //     printf("Time %d Ready Queue: ", time);
         //     for (int i = ready_q.front, cnt = 0; cnt < ready_q.count;
         //          cnt++, i = (i + 1) % MAX_QUEUE_SIZE) {
@@ -367,11 +311,33 @@ Metrics *run_sjf_p(Process *processes, int count) {
         // 도착 프로세스 처리 및 I/O 완료 처리
         for (int i = 0; i < count; i++) {
 
+            // 도착 프로세스 처리 및 선점 여부 처리
+            if (processes[i].arrival_time == time) {
+                // 새로 도착한 프로세스로 선점 검사
+                if (!is_empty(&running_q)) {
+                    int current = peek(&running_q);
+                    if (processes[i].cpu_burst - processes[i].progress <
+                        processes[current].cpu_burst -
+                            processes[current].progress) {
+                        // 선점 발생
+                        preempted = dequeue(&running_q);
+                        enqueue(&ready_q, preempted);
+                        enqueue(&running_q, i);
+                    } else {
+                        // ready queue에 추가
+                        enqueue(&ready_q, i);
+                    }
+                } else {
+                    // ready queue에 추가
+                    enqueue(&ready_q, i);
+                }
+            }
+
             // I/O 완료 처리
             if (waiting_q[i] > 0) {
                 waiting_q[i]--;
                 if (waiting_q[i] == 0) {
-
+                    // I/O 완료 후 선점 검사
                     if (!is_empty(&running_q)) {
                         int current = peek(&running_q);
                         int remaining_current = processes[current].cpu_burst -
@@ -380,116 +346,27 @@ Metrics *run_sjf_p(Process *processes, int count) {
                             processes[i].cpu_burst - processes[i].progress;
 
                         if (remaining_i < remaining_current) {
+                            // 선점 발생
                             preempted = dequeue(&running_q);
                             enqueue(&ready_q, preempted);
                             enqueue(&running_q, i);
-
                         } else {
-                            if (is_empty(&ready_q)) {
-                                enqueue(&ready_q, i);
-                            } else {
-                                int inserted = 0;
-                                while (!is_empty(&ready_q)) {
-                                    int current = peek(&ready_q);
-                                    if (!inserted &&
-                                        (processes[i].cpu_burst -
-                                         processes[i].progress) <
-                                            (processes[current].cpu_burst -
-                                             processes[current].progress)) {
-                                        enqueue(&temp_q, i);
-                                        inserted = 1;
-                                    }
-                                    enqueue(&temp_q, dequeue(&ready_q));
-                                }
-
-                                if (!inserted) {
-                                    enqueue(&temp_q, i);
-                                }
-
-                                while (!is_empty(&temp_q)) {
-                                    enqueue(&ready_q, dequeue(&temp_q));
-                                }
-                            }
+                            // ready queue에 추가
+                            enqueue(&ready_q, i);
                         }
                     } else {
-                        enqueue(&running_q, i);
+                        // running queue가 비어있으면 바로 실행
+                        enqueue(&ready_q, i);
                     }
                     waiting_q[i] = -1;
                 }
             }
-
-            // 도착 프로세스 처리 및 선점 여부 처리
-            if (processes[i].arrival_time == time) {
-
-                if (!is_empty(&running_q)) {
-                    int current = peek(&running_q);
-                    if (processes[i].cpu_burst - processes[i].progress <
-                        processes[current].cpu_burst -
-                            processes[current].progress) {
-                        preempted = dequeue(&running_q);
-                        enqueue(&ready_q, preempted);
-                        enqueue(&running_q, i);
-
-                    } else {
-                        if (is_empty(&ready_q)) {
-                            enqueue(&ready_q, i);
-                        } else {
-                            int inserted = 0;
-                            while (!is_empty(&ready_q)) {
-                                int current = peek(&ready_q);
-                                if (!inserted &&
-                                    processes[i].cpu_burst -
-                                            processes[i].progress <
-                                        processes[current].cpu_burst -
-                                            processes[current].progress) {
-                                    enqueue(&temp_q, i);
-                                    inserted = 1;
-                                }
-                                enqueue(&temp_q, dequeue(&ready_q));
-                            }
-
-                            if (!inserted) {
-                                enqueue(&temp_q, i);
-                            }
-
-                            while (!is_empty(&temp_q)) {
-                                enqueue(&ready_q, dequeue(&temp_q));
-                            }
-                        }
-                    }
-                } else if (is_empty(&ready_q)) {
-                    enqueue(&running_q, i);
-
-                } else {
-                    int inserted = 0;
-                    while (!is_empty(&ready_q)) {
-                        int current = peek(&ready_q);
-                        if (!inserted &&
-                            processes[i].cpu_burst - processes[i].progress <
-                                processes[current].cpu_burst -
-                                    processes[current].progress) {
-                            enqueue(&temp_q, i);
-                            inserted = 1;
-                        }
-                        enqueue(&temp_q, dequeue(&ready_q));
-                    }
-
-                    if (!inserted) {
-                        enqueue(&temp_q, i);
-                    }
-
-                    while (!is_empty(&temp_q)) {
-                        enqueue(&ready_q, dequeue(&temp_q));
-                    }
-                }
-            }
         }
-
-        // CPU 스케줄링 (Ready → Running)
         if (!is_empty(&ready_q)) {
             sort_queue(&ready_q, processes, SORT_BY_REMAINING_TIME);
         }
 
+        // CPU 스케줄링 (Ready → Running)
         if (is_empty(&running_q) && !is_empty(&ready_q)) {
             pick = dequeue(&ready_q);
             enqueue(&running_q, pick);
@@ -541,7 +418,7 @@ Metrics *run_sjf_p(Process *processes, int count) {
         }
 
         // 디버깅용 ready queue 상태 출력 (간소화)
-        // if (!is_empty(&ready_q)) { // 5시간마다 출력
+        // if (!is_empty(&ready_q)) {
         //     printf("Time %d Ready Queue: ", time);
         //     for (int i = ready_q.front, cnt = 0; cnt < ready_q.count;
         //          cnt++, i = (i + 1) % MAX_QUEUE_SIZE) {
@@ -618,58 +495,14 @@ Metrics *run_priority_np(Process *processes, int count) {
         for (int i = 0; i < count; i++) {
             // 도착 프로세스 처리
             if (processes[i].arrival_time == time) {
-
-                if (is_empty(&ready_q)) {
-                    enqueue(&ready_q, i);
-                } else {
-                    int inserted = 0;
-                    while (!is_empty(&ready_q)) {
-                        int current = peek(&ready_q);
-                        if (!inserted && processes[i].priority <
-                                             processes[current].priority) {
-                            enqueue(&temp_q, i);
-                            inserted = 1;
-                        }
-                        enqueue(&temp_q, dequeue(&ready_q));
-                    }
-
-                    if (!inserted) {
-                        enqueue(&temp_q, i);
-                    }
-
-                    while (!is_empty(&temp_q)) {
-                        enqueue(&ready_q, dequeue(&temp_q));
-                    }
-                }
+                enqueue(&ready_q, i);
             }
 
             // I/O 완료 처리
             if (waiting_q[i] > 0) {
                 waiting_q[i]--;
                 if (waiting_q[i] == 0) {
-
-                    if (is_empty(&ready_q)) {
-                        enqueue(&ready_q, i);
-                    } else {
-                        int inserted = 0;
-                        while (!is_empty(&ready_q)) {
-                            int current = peek(&ready_q);
-                            if (!inserted && processes[i].priority <
-                                                 processes[current].priority) {
-                                enqueue(&temp_q, i);
-                                inserted = 1;
-                            }
-                            enqueue(&temp_q, dequeue(&ready_q));
-                        }
-
-                        if (!inserted) {
-                            enqueue(&temp_q, i);
-                        }
-
-                        while (!is_empty(&temp_q)) {
-                            enqueue(&ready_q, dequeue(&temp_q));
-                        }
-                    }
+                    enqueue(&ready_q, i);
                     waiting_q[i] = -1;
                 }
             }
@@ -728,7 +561,7 @@ Metrics *run_priority_np(Process *processes, int count) {
         }
 
         // 디버깅용 ready queue 상태 출력 (간소화)
-        // if (!is_empty(&ready_q)) { // 5시간마다 출력
+        // if (!is_empty(&ready_q)) {
         //     printf("Time %d Ready Queue (Priority order): ", time);
         //     for (int i = ready_q.front, cnt = 0; cnt < ready_q.count;
         //          cnt++, i = (i + 1) % MAX_QUEUE_SIZE) {
@@ -801,121 +634,60 @@ Metrics *run_priority_p(Process *processes, int count) {
     int preempted = -1;
 
     while (completed < count) {
-        // I/O 완료 처리 및 선점 여부 처리
+        // 도착 프로세스 처리 및 I/O 완료 처리
         for (int i = 0; i < count; i++) {
+            // 도착 프로세스 처리 및 선점 여부 처리
+            if (processes[i].arrival_time == time) {
+                // 새로 도착한 프로세스로 선점 검사
+                if (!is_empty(&running_q)) {
+                    int current = peek(&running_q);
+                    if (processes[i].priority < processes[current].priority) {
+                        // 선점 발생
+                        preempted = dequeue(&running_q);
+                        enqueue(&ready_q, preempted);
+                        enqueue(&running_q, i);
+                    } else {
+                        // ready queue에 추가
+                        enqueue(&ready_q, i);
+                    }
+                } else {
+                    // ready queue에 추가
+                    enqueue(&ready_q, i);
+                }
+            }
+
             // I/O 완료 처리
             if (waiting_q[i] > 0) {
                 waiting_q[i]--;
                 if (waiting_q[i] == 0) {
-
+                    // I/O 완료 후 선점 검사
                     if (!is_empty(&running_q)) {
                         int current = peek(&running_q);
-
                         if (processes[i].priority <
                             processes[current].priority) {
+                            // 선점 발생
                             preempted = dequeue(&running_q);
                             enqueue(&ready_q, preempted);
                             enqueue(&running_q, i);
-
                         } else {
-                            if (is_empty(&ready_q)) {
-                                enqueue(&ready_q, i);
-                            } else {
-                                int inserted = 0;
-                                while (!is_empty(&ready_q)) {
-                                    int current = peek(&ready_q);
-                                    if (!inserted &&
-                                        processes[i].priority <
-                                            processes[current].priority) {
-                                        enqueue(&temp_q, i);
-                                        inserted = 1;
-                                    }
-                                    enqueue(&temp_q, dequeue(&ready_q));
-                                }
-
-                                if (!inserted) {
-                                    enqueue(&temp_q, i);
-                                }
-
-                                while (!is_empty(&temp_q)) {
-                                    enqueue(&ready_q, dequeue(&temp_q));
-                                }
-                            }
+                            // ready queue에 추가
+                            enqueue(&ready_q, i);
                         }
                     } else {
-                        enqueue(&running_q, i);
+                        // running queue가 비어있으면 바로 실행
+                        enqueue(&ready_q, i);
                     }
                     waiting_q[i] = -1;
                 }
             }
-
-            // 도착 프로세스 처리 및 선점 여부 처리
-            if (processes[i].arrival_time == time) {
-
-                if (!is_empty(&running_q)) {
-                    int current = peek(&running_q);
-
-                    if (processes[i].priority < processes[current].priority) {
-                        preempted = dequeue(&running_q);
-                        enqueue(&ready_q, preempted);
-                        enqueue(&running_q, i);
-
-                    } else {
-                        if (is_empty(&ready_q)) {
-                            enqueue(&ready_q, i);
-                        } else {
-                            int inserted = 0;
-                            while (!is_empty(&ready_q)) {
-                                int current = peek(&ready_q);
-                                if (!inserted &&
-                                    processes[i].priority <
-                                        processes[current].priority) {
-                                    enqueue(&temp_q, i);
-                                    inserted = 1;
-                                }
-                                enqueue(&temp_q, dequeue(&ready_q));
-                            }
-
-                            if (!inserted) {
-                                enqueue(&temp_q, i);
-                            }
-
-                            while (!is_empty(&temp_q)) {
-                                enqueue(&ready_q, dequeue(&temp_q));
-                            }
-                        }
-                    }
-                } else if (is_empty(&ready_q)) {
-                    enqueue(&running_q, i);
-
-                } else {
-                    int inserted = 0;
-                    while (!is_empty(&ready_q)) {
-                        int current = peek(&ready_q);
-                        if (!inserted && processes[i].priority <
-                                             processes[current].priority) {
-                            enqueue(&temp_q, i);
-                            inserted = 1;
-                        }
-                        enqueue(&temp_q, dequeue(&ready_q));
-                    }
-
-                    if (!inserted) {
-                        enqueue(&temp_q, i);
-                    }
-
-                    while (!is_empty(&temp_q)) {
-                        enqueue(&ready_q, dequeue(&temp_q));
-                    }
-                }
-            }
         }
 
-        // CPU 스케줄링 (Ready → Running)
+        // Ready queue를 우선순위 기준으로 정렬
         if (!is_empty(&ready_q)) {
             sort_queue(&ready_q, processes, SORT_BY_PRIORITY);
         }
 
+        // CPU 스케줄링 (Ready → Running)
         if (is_empty(&running_q) && !is_empty(&ready_q)) {
             pick = dequeue(&ready_q);
             enqueue(&running_q, pick);
@@ -964,7 +736,7 @@ Metrics *run_priority_p(Process *processes, int count) {
         }
 
         // 디버깅용 ready queue 상태 출력 (간소화)
-        // if (!is_empty(&ready_q)) { // 5시간마다 출력
+        // if (!is_empty(&ready_q)) {
         //     printf("Time %d Ready Queue (Priority order): ", time);
         //     for (int i = ready_q.front, cnt = 0; cnt < ready_q.count;
         //          cnt++, i = (i + 1) % MAX_QUEUE_SIZE) {
@@ -1040,6 +812,14 @@ Metrics *run_rr(Process *processes, int count, Config *config) {
     printf("** Time Quantum: %d **\n\n", quantum);
 
     while (completed < count) {
+        // 타임 퀀텀 만료 처리 (새로운 프로세스 도착 전에 먼저 처리)
+        if (!is_empty(&running_q) &&
+            time_quantum[peek(&running_q)] == quantum) {
+            int rotated = dequeue(&running_q);
+            enqueue(&ready_q, rotated);
+            time_quantum[rotated] = 0;
+        }
+
         // 도착 프로세스 처리 및 I/O 완료 처리
         for (int i = 0; i < count; i++) {
             // 도착 프로세스 처리
@@ -1057,13 +837,6 @@ Metrics *run_rr(Process *processes, int count, Config *config) {
                 }
             }
         }
-
-        if (!is_empty(&running_q) &&
-            time_quantum[peek(&running_q)] == quantum) {
-            int rotated = dequeue(&running_q);
-            enqueue(&ready_q, rotated);
-            time_quantum[rotated] = 0;
-        } // IO 완료 처리 이후 실행
 
         // CPU 스케줄링 (Ready → Running)
         if (is_empty(&running_q) && !is_empty(&ready_q)) {
@@ -1118,7 +891,7 @@ Metrics *run_rr(Process *processes, int count, Config *config) {
         }
 
         // 디버깅용 ready queue 상태 출력 (간소화)
-        // if (!is_empty(&ready_q)) { // 5시간마다 출력
+        // if (!is_empty(&ready_q)) {
         //     printf("Time %d Ready Queue: ", time);
         //     for (int i = ready_q.front, cnt = 0; cnt < ready_q.count;
         //          cnt++, i = (i + 1) % MAX_QUEUE_SIZE) {
@@ -1242,46 +1015,9 @@ Metrics *run_priority_with_aging(Process *processes, int count) {
             age[pid] = 0;
         }
 
-        // 우선순위 변경 후 정렬
-        if (aging_count > 0) {
-            Queue new_ready_q;
-            init_queue(&new_ready_q);
-
-            while (!is_empty(&ready_q)) {
-                enqueue(&temp_q, dequeue(&ready_q));
-            }
-
-            while (!is_empty(&temp_q)) {
-                int current_pid = dequeue(&temp_q);
-
-                if (is_empty(&new_ready_q)) {
-                    enqueue(&new_ready_q, current_pid);
-                } else {
-                    Queue temp_q2;
-                    init_queue(&temp_q2);
-                    int inserted = 0;
-
-                    while (!is_empty(&new_ready_q)) {
-                        int next_pid = peek(&new_ready_q);
-                        if (!inserted && processes[current_pid].priority <
-                                             processes[next_pid].priority) {
-                            enqueue(&temp_q2, current_pid);
-                            inserted = 1;
-                        }
-                        enqueue(&temp_q2, dequeue(&new_ready_q));
-                    }
-
-                    if (!inserted) {
-                        enqueue(&temp_q2, current_pid);
-                    }
-
-                    while (!is_empty(&temp_q2)) {
-                        enqueue(&new_ready_q, dequeue(&temp_q2));
-                    }
-                }
-            }
-
-            ready_q = new_ready_q;
+        // 우선순위 변경 후 ready queue 재정렬 (aging이 발생한 경우에만)
+        if (aging_count > 0 && !is_empty(&ready_q)) {
+            sort_queue(&ready_q, processes, SORT_BY_PRIORITY);
         }
 
         // 선점 처리 (Aging 후)
@@ -1304,117 +1040,58 @@ Metrics *run_priority_with_aging(Process *processes, int count) {
             }
         }
 
-        // I/O 완료 처리 및 선점 여부 처리
+        // 도착 프로세스 처리 (I/O 완료 처리보다 먼저)
         for (int i = 0; i < count; i++) {
-            if (waiting_q[i] > 0) {
-                waiting_q[i]--;
-                if (waiting_q[i] == 0) {
-
-                    if (!is_empty(&running_q)) {
-                        int current = peek(&running_q);
-
-                        if (processes[i].priority <
-                            processes[current].priority) {
-                            preempted = dequeue(&running_q);
-                            enqueue(&ready_q, preempted);
-                            enqueue(&running_q, i);
-                            age[i] = 0;
-                        } else {
-                            if (is_empty(&ready_q)) {
-                                enqueue(&ready_q, i);
-                            } else {
-                                int inserted = 0;
-                                while (!is_empty(&ready_q)) {
-                                    int current = peek(&ready_q);
-                                    if (!inserted &&
-                                        processes[i].priority <
-                                            processes[current].priority) {
-                                        enqueue(&temp_q, i);
-                                        inserted = 1;
-                                    }
-                                    enqueue(&temp_q, dequeue(&ready_q));
-                                }
-
-                                if (!inserted) {
-                                    enqueue(&temp_q, i);
-                                }
-
-                                while (!is_empty(&temp_q)) {
-                                    enqueue(&ready_q, dequeue(&temp_q));
-                                }
-                            }
-                        }
-                    } else {
-                        enqueue(&running_q, i);
-                        age[i] = 0;
-                    }
-                    waiting_q[i] = -1;
-                }
-            }
-
-            // 도착 프로세스 처리 및 선점 여부 처리
             if (processes[i].arrival_time == time) {
-
+                // 새로 도착한 프로세스로 선점 검사
                 if (!is_empty(&running_q)) {
                     int current = peek(&running_q);
-
                     if (processes[i].priority < processes[current].priority) {
+                        // 선점 발생
                         preempted = dequeue(&running_q);
                         enqueue(&ready_q, preempted);
                         enqueue(&running_q, i);
                         age[i] = 0;
                     } else {
-                        if (is_empty(&ready_q)) {
-                            enqueue(&ready_q, i);
-                        } else {
-                            int inserted = 0;
-                            while (!is_empty(&ready_q)) {
-                                int current = peek(&ready_q);
-                                if (!inserted &&
-                                    processes[i].priority <
-                                        processes[current].priority) {
-                                    enqueue(&temp_q, i);
-                                    inserted = 1;
-                                }
-                                enqueue(&temp_q, dequeue(&ready_q));
-                            }
-
-                            if (!inserted) {
-                                enqueue(&temp_q, i);
-                            }
-
-                            while (!is_empty(&temp_q)) {
-                                enqueue(&ready_q, dequeue(&temp_q));
-                            }
-                        }
+                        // ready queue에 추가
+                        enqueue(&ready_q, i);
                     }
-                } else if (is_empty(&ready_q)) {
-                    enqueue(&running_q, i);
-                    age[i] = 0;
-
                 } else {
-                    int inserted = 0;
-                    while (!is_empty(&ready_q)) {
-                        int current = peek(&ready_q);
-                        if (!inserted && processes[i].priority <
-                                             processes[current].priority) {
-                            enqueue(&temp_q, i);
-                            inserted = 1;
-                        }
-                        enqueue(&temp_q, dequeue(&ready_q));
-                    }
-
-                    if (!inserted) {
-                        enqueue(&temp_q, i);
-                    }
-
-                    while (!is_empty(&temp_q)) {
-                        enqueue(&ready_q, dequeue(&temp_q));
-                    }
+                    // running queue가 비어있어도 ready queue에 추가
+                    enqueue(&ready_q, i);
                 }
             }
         }
 
+        // I/O 완료 처리
+        for (int i = 0; i < count; i++) {
+            if (waiting_q[i] > 0) {
+                waiting_q[i]--;
+                if (waiting_q[i] == 0) {
+                    // I/O 완료 후 선점 검사
+                    if (!is_empty(&running_q)) {
+                        int current = peek(&running_q);
+                        if (processes[i].priority <
+                            processes[current].priority) {
+                            // 선점 발생
+                            preempted = dequeue(&running_q);
+                            enqueue(&ready_q, preempted);
+                            enqueue(&running_q, i);
+                            age[i] = 0;
+                        } else {
+                            // ready queue에 추가
+                            enqueue(&ready_q, i);
+                        }
+                    } else {
+                        // running queue가 비어있어도 ready queue에 추가
+                        enqueue(&ready_q, i);
+                    }
+                    waiting_q[i] = -1;
+                }
+            }
+        }
+
+        // Ready queue를 우선순위 기준으로 정렬 (CPU 할당 직전에 일괄 정렬)
         if (!is_empty(&ready_q)) {
             sort_queue(&ready_q, processes, SORT_BY_PRIORITY);
         }
@@ -1588,30 +1265,6 @@ Metrics *run_rms(Process *processes, int count, Config *config, int max_time) {
     int has_missed = 0;
 
     while (time < max_time) {
-        // I/O 완료 처리
-        for (int i = 0; i < total_process_count; i++) {
-            if (waiting_q[i] > 0) {
-                waiting_q[i]--;
-                if (waiting_q[i] == 0) {
-                    // I/O 완료 후 스케줄링 결정
-                    if (!is_empty(&running_q)) {
-                        int current_running = peek(&running_q);
-                        if (all_processes[i].period <
-                            all_processes[current_running].period) {
-                            int preempted = dequeue(&running_q);
-                            enqueue(&ready_q, preempted);
-                            enqueue(&running_q, i);
-                        } else {
-                            insert_by_period(&ready_q, i, all_processes);
-                        }
-                    } else {
-                        enqueue(&running_q, i);
-                    }
-                    waiting_q[i] = -1;
-                }
-            }
-        }
-
         // 새로운 프로세스 인스턴스 생성 (초기 도착 + 주기적 도착)
         for (int i = 0; i < count; i++) {
             if (next_arrival[i] == time) {
@@ -1659,29 +1312,51 @@ Metrics *run_rms(Process *processes, int count, Config *config, int max_time) {
                         enqueue(&ready_q, preempted);
                         enqueue(&running_q, total_process_count);
                     } else {
-                        insert_by_period(&ready_q, total_process_count,
-                                         all_processes);
+                        // 단순 enqueue (나중에 일괄 정렬)
+                        enqueue(&ready_q, total_process_count);
                     }
-                } else if (is_empty(&ready_q)) {
-                    enqueue(&running_q, total_process_count);
                 } else {
-                    insert_by_period(&ready_q, total_process_count,
-                                     all_processes);
+                    // 단순 enqueue (나중에 일괄 정렬)
+                    enqueue(&ready_q, total_process_count);
                 }
 
                 total_process_count++;
             }
         }
 
+        // I/O 완료 처리
+        for (int i = 0; i < total_process_count; i++) {
+            if (waiting_q[i] > 0) {
+                waiting_q[i]--;
+                if (waiting_q[i] == 0) {
+                    // I/O 완료 후 스케줄링 결정
+                    if (!is_empty(&running_q)) {
+                        int current_running = peek(&running_q);
+                        if (all_processes[i].period <
+                            all_processes[current_running].period) {
+                            int preempted = dequeue(&running_q);
+                            enqueue(&ready_q, preempted);
+                            enqueue(&running_q, i);
+                        } else {
+                            enqueue(&ready_q, i);
+                        }
+                    } else {
+                        enqueue(&ready_q, i);
+                    }
+                    waiting_q[i] = -1;
+                }
+            }
+        }
+
+        // Ready queue를 period 기준으로 정렬 (CPU 할당 직전에 일괄 정렬)
         if (!is_empty(&ready_q)) {
             sort_queue(&ready_q, all_processes, SORT_BY_PERIOD);
         }
 
-        // Ready queue에서 프로세스 가져오기
+        // CPU 스케줄링 (Ready → Running)
         if (is_empty(&running_q) && !is_empty(&ready_q)) {
             int next_process =
-                get_shortest_period_process(&ready_q, all_processes);
-            remove_from_queue(&ready_q, next_process);
+                dequeue(&ready_q); // 이미 정렬되어 있으므로 첫 번째가 최단 주기
             enqueue(&running_q, next_process);
         }
 
@@ -1757,15 +1432,13 @@ Metrics *run_rms(Process *processes, int count, Config *config, int max_time) {
         //     for (int i = ready_q.front, cnt = 0; cnt < ready_q.count;
         //          cnt++, i = (i + 1) % MAX_QUEUE_SIZE) {
         //         int pid = ready_q.data[i];
-        //         printf("P%d(period:%d) ", all_processes[pid].pid,
+        //         printf("P%d(pr:%d) ", all_processes[pid].pid,
         //                all_processes[pid].period);
         //     }
-        //     printf("\n");
         // }
 
         time++;
     }
-
     if (!has_missed) {
         printf("|                There is no deadline miss                |\n");
     }
@@ -1868,30 +1541,6 @@ Metrics *run_edf(Process *processes, int count, Config *config, int max_time) {
     int has_missed = 0;
 
     while (time < max_time) {
-        // I/O 완료 처리
-        for (int i = 0; i < total_process_count; i++) {
-            if (waiting_q[i] > 0) {
-                waiting_q[i]--;
-                if (waiting_q[i] == 0) {
-                    // I/O 완료 후 스케줄링 결정
-                    if (!is_empty(&running_q)) {
-                        int current_running = peek(&running_q);
-                        if (all_processes[i].deadline <
-                            all_processes[current_running].deadline) {
-                            int preempted = dequeue(&running_q);
-                            enqueue(&ready_q, preempted);
-                            enqueue(&running_q, i);
-                        } else {
-                            insert_by_deadline(&ready_q, i, all_processes);
-                        }
-                    } else {
-                        enqueue(&running_q, i);
-                    }
-                    waiting_q[i] = -1;
-                }
-            }
-        }
-
         // 새로운 프로세스 인스턴스 생성 (초기 도착 + 주기적 도착)
         for (int i = 0; i < count; i++) {
             if (next_arrival[i] == time) {
@@ -1930,7 +1579,7 @@ Metrics *run_edf(Process *processes, int count, Config *config, int max_time) {
                 // 다음 도착 시간 업데이트
                 next_arrival[i] += original_processes[i].period;
 
-                // 스케줄링 결정
+                // 스케줄링 결정 (deadline 기준)
                 if (!is_empty(&running_q)) {
                     int current_running = peek(&running_q);
                     if (all_processes[total_process_count].deadline <
@@ -1939,29 +1588,51 @@ Metrics *run_edf(Process *processes, int count, Config *config, int max_time) {
                         enqueue(&ready_q, preempted);
                         enqueue(&running_q, total_process_count);
                     } else {
-                        insert_by_deadline(&ready_q, total_process_count,
-                                           all_processes);
+                        // 단순 enqueue (나중에 일괄 정렬)
+                        enqueue(&ready_q, total_process_count);
                     }
-                } else if (is_empty(&ready_q)) {
-                    enqueue(&running_q, total_process_count);
                 } else {
-                    insert_by_deadline(&ready_q, total_process_count,
-                                       all_processes);
+                    // 단순 enqueue (나중에 일괄 정렬)
+                    enqueue(&ready_q, total_process_count);
                 }
 
                 total_process_count++;
             }
         }
 
+        // I/O 완료 처리
+        for (int i = 0; i < total_process_count; i++) {
+            if (waiting_q[i] > 0) {
+                waiting_q[i]--;
+                if (waiting_q[i] == 0) {
+                    // I/O 완료 후 스케줄링 결정
+                    if (!is_empty(&running_q)) {
+                        int current_running = peek(&running_q);
+                        if (all_processes[i].deadline <
+                            all_processes[current_running].deadline) {
+                            int preempted = dequeue(&running_q);
+                            enqueue(&ready_q, preempted);
+                            enqueue(&running_q, i);
+                        } else {
+                            enqueue(&ready_q, i);
+                        }
+                    } else {
+                        enqueue(&ready_q, i);
+                    }
+                    waiting_q[i] = -1;
+                }
+            }
+        }
+
+        // Ready queue를 deadline 기준으로 정렬 (CPU 할당 직전에 일괄 정렬)
         if (!is_empty(&ready_q)) {
             sort_queue(&ready_q, all_processes, SORT_BY_DEADLINE);
         }
 
-        // Ready queue에서 프로세스 가져오기
+        // CPU 스케줄링 (Ready → Running)
         if (is_empty(&running_q) && !is_empty(&ready_q)) {
-            int next_process =
-                get_earliest_deadline_process(&ready_q, all_processes);
-            remove_from_queue(&ready_q, next_process);
+            int next_process = dequeue(&ready_q); // 이미 정렬되어 있으므로 첫
+                                                  // 번째가 가장 빠른 deadline
             enqueue(&running_q, next_process);
         }
 
@@ -2037,10 +1708,9 @@ Metrics *run_edf(Process *processes, int count, Config *config, int max_time) {
         //     for (int i = ready_q.front, cnt = 0; cnt < ready_q.count;
         //          cnt++, i = (i + 1) % MAX_QUEUE_SIZE) {
         //         int pid = ready_q.data[i];
-        //         printf("P%d(dl:%d) ", all_processes[pid].pid,
-        //                all_processes[pid].deadline);
+        //         printf("P%d(pr:%d) ", all_processes[pid].pid,
+        //                all_processes[pid].period);
         //     }
-        //     printf("\n");
         // }
 
         time++;

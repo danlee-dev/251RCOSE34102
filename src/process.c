@@ -4,18 +4,9 @@
 #include <stdlib.h>
 #include <string.h>
 #include <time.h>
-
+#include "utils.h"
 #define MAX_FILES 100
 
-int rand_except(int min, int max, int exclude) {
-    int r;
-    if (max - min <= 0)
-        return min; // 예외 처리
-    do {
-        r = rand() % (max - min + 1) + min;
-    } while (r == exclude);
-    return r;
-}
 
 // 프로세스의 I/O 작업 초기화
 void init_process_io(Process *p) {
@@ -25,48 +16,7 @@ void init_process_io(Process *p) {
     }
 }
 
-// I/O 작업 추가 함수
-void add_io_to_process(Process *p, int io_start, int io_burst) {
-    for (int i = 0; i < MAX_IO_OPERATIONS; i++) {
-        if (p->io_operations[i].io_start == -1) {
-            p->io_operations[i].io_start = io_start;
-            p->io_operations[i].io_burst = io_burst;
-            break;
-        }
-    }
-}
 
-// I/O 작업 개수 반환
-int get_io_count(Process *p) {
-    int count = 0;
-    for (int i = 0; i < MAX_IO_OPERATIONS; i++) {
-        if (p->io_operations[i].io_start != -1) {
-            count++;
-        }
-    }
-    return count;
-}
-
-void sort_io_operations(Process *p) {
-    // 버블 정렬을 사용하여 io_start 기준으로 오름차순 정렬
-    for (int i = 0; i < MAX_IO_OPERATIONS - 1; i++) {
-        for (int j = 0; j < MAX_IO_OPERATIONS - i - 1; j++) {
-            // 둘 다 유효한 I/O 작업인 경우에만 비교
-            if (p->io_operations[j].io_start != -1 &&
-                p->io_operations[j + 1].io_start != -1) {
-
-                // io_start 기준으로 정렬 (작은 값이 앞에 오도록)
-                if (p->io_operations[j].io_start >
-                    p->io_operations[j + 1].io_start) {
-                    // 두 I/O 작업 교환
-                    IOOperation temp = p->io_operations[j];
-                    p->io_operations[j] = p->io_operations[j + 1];
-                    p->io_operations[j + 1] = temp;
-                }
-            }
-        }
-    }
-}
 
 Process *create_processes(int *count, char mode) {
     Process *processes = (Process *)malloc(sizeof(Process) * *count);
@@ -380,36 +330,6 @@ Process *create_processes(int *count, char mode) {
     }
 
     return processes;
-}
-
-// 시간이 이미 사용되었는지 확인하는 함수
-int is_time_used(int *used_times, int count, int time) {
-    for (int i = 0; i < count; i++) {
-        if (used_times[i] == time) {
-            return 1;
-        }
-    }
-    return 0;
-}
-
-// 특정 진행도에서 I/O가 시작되는지 확인
-int has_io_at_progress(Process *p, int progress) {
-    for (int i = 0; i < MAX_IO_OPERATIONS; i++) {
-        if (p->io_operations[i].io_start == progress) {
-            return 1;
-        }
-    }
-    return 0;
-}
-
-// 특정 진행도에서의 I/O 버스트 시간 반환
-int get_io_burst_at_progress(Process *p, int progress) {
-    for (int i = 0; i < MAX_IO_OPERATIONS; i++) {
-        if (p->io_operations[i].io_start == progress) {
-            return p->io_operations[i].io_burst;
-        }
-    }
-    return 0;
 }
 
 void reset_processes(Process *processes, int count) {

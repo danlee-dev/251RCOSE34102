@@ -15,10 +15,5 @@ Metrics *run_rr(Process *processes, int count, Config *config);
 Metrics *run_priority_with_aging(Process *processes, int count);
 Metrics *run_edf(Process *processes, int count, Config *config, int max_time);
 Metrics *run_rms(Process *processes, int count, Config *config, int max_time);
-void insert_by_deadline(Queue *queue, int pid, Process *processes);
-int get_earliest_deadline_process(Queue *queue, Process *processes);
-void remove_from_queue(Queue *queue, int pid);
-void sort_ready_queue_by_remaining_time(Queue *ready_q, Process *processes);
-void sort_ready_queue_by_priority(Queue *ready_q, Process *processes);
 
 #endif
